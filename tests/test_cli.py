@@ -3,12 +3,9 @@
 from typing import List
 
 import pytest
-from typer.testing import CliRunner
 
 import home_media_organizer
 from home_media_organizer import cli
-
-runner = CliRunner()
 
 
 @pytest.mark.parametrize(

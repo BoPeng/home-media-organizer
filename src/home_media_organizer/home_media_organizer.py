@@ -14,9 +14,6 @@ from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 from .media_file import MediaFile, ExifTool, date_func
 
-import typer
-
-app = typer.Typer()
 
 confirmed = False
 
