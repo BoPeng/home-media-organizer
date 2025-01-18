@@ -28,7 +28,7 @@ home-media-organizer = 'home_media_organizer.cli:app'
 
 [tool.poetry.dependencies]
 python = "<3.13,>=3.9"
-typer = {extras = ["all"], version = "^0.13.0"}
+typer = {extras = ["all"], version = "^0.15.1"}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.0.1"
