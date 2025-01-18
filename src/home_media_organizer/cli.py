@@ -7,13 +7,122 @@ import argparse
 import sys
 
 
-def list_files(items, **kwargs):
+#
+# command line tools
+#
+def list_files(args):
     """List all or selected media files."""
 
-    for item in iter_files(items, **kwargs):
+    for item in iter_files(args):
         print(item)
 
 
+def show_exif(args):
+    for item in iter_files(args):
+        m = MediaFile(item)
+        m.show_exif(args.keys, args.format)
+
+
+def rename_file(item):
+    m = MediaFile(item)
+    m.rename()
+
+
+def rename_files(args):
+    global confirmed
+    if confirmed:
+        process_with_queue(args, rename_file)
+    else:
+        for item in iter_files(args):
+            print(f"Processing {item}")
+            rename_file(item)
+
+
+def check_jpeg(item, remove=False):
+    if not any(item.endswith(x) for x in (".jpg", ".jpeg")):
+        return
+    try:
+        i = Image.open(item)
+        i.close()
+    except UnidentifiedImageError:
+        if remove:
+            print(f"Remove {item}")
+            os.remove(item)
+        else:
+            print(f"Corrupted {item}")
+        return
+
+
+def check_jpeg_files(args):
+    process_with_queue(args, lambda x, remove=args.remove: check_jpeg(x, remove=remove))
+
+
+def get_file_size(filename):
+    return (filename, os.path.getsize(filename))
+
+
+def get_file_md5(filename, md5_cache):
+    return (filename, MediaFile(filename).calculate_md5(md5_cache).md5)
+
+
+def remove_duplicated_files(args):
+    md5_files = defaultdict(list)
+    size_files = defaultdict(list)
+
+    if os.path.isfile("md5.json"):
+        md5_cache = json.load(open("md5.json"))
+    else:
+        md5_cache = {}
+
+    with Pool() as pool:
+        # get file size
+        for filename, filesize in pool.map(get_file_size, iter_files(args)):
+            size_files[filesize].append(filename)
+        #
+        # get md5 for files with the same size
+        potential_duplicates = sum([x for x in size_files.values() if len(x) > 1], [])
+        for filename, md5 in pool.starmap(
+            get_file_md5,
+            zip(potential_duplicates, [md5_cache] * len(potential_duplicates)),
+        ):
+            md5_files[md5].append(filename)
+
+    with open("md5.json", "w") as store:
+        json.dump(md5_cache, store, indent=4)
+
+    #
+    for md5, files in md5_files.items():
+        if len(files) == 1:
+            continue
+        # print(f"Found {len(files)} files with md5 {md5}")
+        # keep the one with the deepest path name
+        sorted_files = sorted(files, key=len)
+        for filename in sorted_files[:-1]:
+            print(f"Remove {filename} that duplicates {sorted_files[-1]} ")
+            os.remove(filename)
+
+
+def organize_files(args):
+    for item in iter_files(args):
+        m = MediaFile(item)
+        m.move(args.media_root, subdir=args.subdir if args.subdir else m.get_subdir())
+
+
+def shift_exif_date(args):
+    for item in iter_files(args):
+        m = MediaFile(item)
+        m.shift(args.shift)
+
+
+def set_exif_date(args):
+    for item in iter_files(args):
+        m = MediaFile(item)
+        m.set_dates(args.set_date)
+
+
+#
+# User interface
+#
 def get_common_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
@@ -51,7 +160,7 @@ def app():
     parser.add_argument(
         "-v", "--version", action="version", version="Home Media Organizer " + __version__
     )
-    #
+    # common options for all
     parent_parser = get_common_args_parser()
     subparsers = parser.add_subparsers(required=True, help="sub-command help")
     #
@@ -63,9 +172,15 @@ def app():
     # show exif of files
     #
     parser_show = subparsers.add_parser(
-        "show", parents=[parent_parser], help="Show all or selected exif"
+        "show-exif", parents=[parent_parser], help="Show all or selected exif information"
     )
     parser_show.add_argument("--keys", nargs="*", help="Show all or selected exif")
+    parser_show.add_argument(
+        "--format",
+        choices=("json", "text"),
+        default="json",
+        help="Show output in json or text format",
+    )
     parser_show.set_defaults(func=show_exif)
     #
     # check jpeg

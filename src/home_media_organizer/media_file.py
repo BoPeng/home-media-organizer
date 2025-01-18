@@ -3,7 +3,7 @@
 import os
 import hashlib
 
-
+import fnmatch
 import filecmp
 import json
 import os
@@ -11,6 +11,8 @@ import re
 import shutil
 import subprocess
 from datetime import datetime, timedelta
+
+import rich
 
 
 class MediaFile:
@@ -60,14 +62,25 @@ class MediaFile:
                     continue
         return self.date
 
-    def show_exif(self, keys=None):
+    def show_exif(self, keys=None, format=None):
         with ExifTool() as e:
             metadata = e.get_metadata(self.fullname)
-        print(self.fullname)
-        for k, v in metadata.items():
-            if not keys or k in keys:
-                print(f"{k}: {v}")
-        print()
+            if keys is not None:
+                if all("*" not in key for key in keys):
+                    metadata = {k: metadata.get(k, "NA") for k in keys}
+                else:
+                    metadata = {
+                        k: v
+                        for k, v in metadata.items()
+                        if any(fnmatch.fnmatch(k, key) for key in keys)
+                    }
+
+        if not format or format == "json":
+            rich.print_json(data=metadata)
+        else:
+            for key, value in metadata.items():
+                rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
+            rich.print()
 
     def intended_prefix(self):
         date = self.get_date()
@@ -296,7 +309,10 @@ class ExifTool(object):
         return output[: -len(self.sentinel)]
 
     def get_metadata(self, *filenames):
-        return json.loads(self.execute("-G", "-j", "-n", *filenames))[0]
+        try:
+            return json.loads(self.execute("-G", "-j", "-n", *filenames))[0]
+        except:
+            return {}
 
     def update_metadata(self, filename, **kwargs):
         args = [
@@ -408,38 +424,3 @@ date_func = {
 
 
 date_func.update({x.upper(): y for x, y in date_func.items()})
-
-
-def iter_files(args):
-    # if file is selected based on args.matches,, args.with_exif, args.without_exif
-    def is_selected(filename):
-        global date_func
-        if args.file_types and not any(filename.endswith(x) for x in args.file_types):
-            return False
-        if os.path.splitext(filename)[-1] not in date_func:
-            return False
-        if args.with_exif or args.without_exif:
-            with ExifTool() as e:
-                metadata = e.get_metadata(filename)
-            for cond in args.without_exif or []:
-                k, v = cond.split("=")
-                if k in metadata and metadata[k] == v:
-                    return False
-            match = True
-            for cond in args.with_exif or []:
-                k, v = cond.split("=")
-                if k not in metadata or metadata[k] != v:
-                    match = False
-            return match
-        return True
-
-    for item in args.dirs:
-        if os.path.isfile(item) and is_selected(item):
-            yield item
-        else:
-            if not os.path.isdir(item):
-                raise RuntimeError(f"{item} is not a filename or directory")
-            for root, dirs, files in os.walk(item):
-                for f in files:
-                    if is_selected(f):
-                        yield os.path.join(root, f)

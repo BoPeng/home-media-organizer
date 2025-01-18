@@ -30,6 +30,7 @@ hmo = 'home_media_organizer.cli:app'
 python = "<3.13,>=3.9"
 pillow = "^11.1.0"
 tqdm = "^4.67.1"
+rich = "13.9.4"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.0.1"
