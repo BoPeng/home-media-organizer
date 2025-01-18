@@ -8,11 +8,23 @@ import filecmp
 import json
 import os
 import re
+import sys
 import shutil
 import subprocess
 from datetime import datetime, timedelta
 
 import rich
+
+
+def get_response(msg, allowed=None):
+    while True:
+        res = input(f'{msg} (y/n{"/" if allowed else ""}{"/".join(allowed or [])})? ')
+        if res == "y":
+            return True
+        elif res == "n":
+            return False
+        elif allowed and res in allowed:
+            return res
 
 
 class MediaFile:
@@ -127,13 +139,12 @@ class MediaFile:
                 return os.path.join(root, year, month, os.path.basename(self.dirname))
             return os.path.join(root, year, month)
 
-    def shift(self, shift):
+    def shift_exif(
+        self, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, confirmed=False
+    ):
         # add one or more 0: if the format is not YY:DD:HH:MM
-        shift = "0:" * (4 - shift.count(":")) + shift
-        year, month, days, hours, minutes = map(int, shift.split(":"))
         # Calculate the total shift in timedelta
-        shift_timedelta = timedelta(days=days, hours=hours, minutes=minutes)
-        print(f"shift {self.fullname} by {days} {hours} {minutes}")
+        shift_timedelta = timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
         with ExifTool() as e:
             metadata = e.get_metadata(self.fullname)
             changes = {}
@@ -150,23 +161,37 @@ class MediaFile:
                         hrs = v
                         sec = ""
                     original_datetime = datetime.strptime(hrs, "%Y:%m:%d %H:%M:%S")
-                    if year:
+                    if years:
                         original_datetime = original_datetime.replace(
-                            year=original_datetime.year + year
+                            year=original_datetime.year + years
                         )
                     #
-                    if month:
-                        original_datetime = original_datetime.replace(
-                            month=original_datetime.month + month
-                        )
+                    if months:
+                        new_month = original_datetime.month + months
+                        if new_month > 12:
+                            original_datetime = original_datetime.replace(
+                                year=original_datetime.year + new_month // 12
+                            )
+                            new_month = new_month % 12
+                        elif new_month < 1:
+                            original_datetime = original_datetime.replace(
+                                year=original_datetime.year + new_month // 12 - 1
+                            )
+                            new_month = new_month % 12 + 12
+                        #
+                        original_datetime = original_datetime.replace(month=new_month)
                     #
                     new_datetime = original_datetime + shift_timedelta
                     if new_datetime <= datetime.now():
                         new_v = new_datetime.strftime("%Y:%m:%d %H:%M:%S") + sec
                         changes[k] = new_v
             for k, new_v in changes.items():
-                print(f"shift {k}\tfrom {metadata[k]}\tto {new_v}")
-            if get_response(f"Shift dates of {self.fullname} as shown above"):
+                rich.print(
+                    f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
+                )
+            if confirmed or get_response(
+                f"Shift dates of {os.path.basename(self.fullname)} as shown above?"
+            ):
                 e.update_metadata(self.fullname, **changes)
 
     def set_date(self, new_date):
@@ -311,6 +336,8 @@ class ExifTool(object):
     def get_metadata(self, *filenames):
         try:
             return json.loads(self.execute("-G", "-j", "-n", *filenames))[0]
+        except KeyboardInterrupt:
+            sys.exit(1)
         except:
             return {}
 

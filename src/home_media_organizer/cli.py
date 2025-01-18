@@ -2,7 +2,7 @@
 
 from . import __version__
 from .home_media_organizer import *
-
+from .media_file import MediaFile
 import argparse
 import sys
 
@@ -29,8 +29,7 @@ def rename_file(item):
 
 
 def rename_files(args):
-    global confirmed
-    if confirmed:
+    if args.yees:
         process_with_queue(args, rename_file)
     else:
         for item in iter_files(args):
@@ -111,7 +110,16 @@ def organize_files(args):
 def shift_exif_date(args):
     for item in iter_files(args):
         m = MediaFile(item)
-        m.shift(args.shift)
+        m.shift_exif(
+            years=args.years,
+            months=args.months,
+            weeks=args.weeks,
+            days=args.days,
+            hours=args.hours,
+            minutes=args.minutes,
+            seconds=args.seconds,
+            confirmed=args.confirmed,
+        )
 
 
 def set_exif_date(args):
@@ -145,7 +153,7 @@ def get_common_args_parser():
         "-y",
         "--yes",
         action="store_true",
-        dest="__confirm__",
+        dest="confirmed",
         help="Proceed with all actions without prompt.",
     )
     return parser
@@ -233,9 +241,25 @@ def app():
     # shift date of exif
     #
     parser_shift = subparsers.add_parser(
-        "shift", parents=[parent_parser], help="YY:MM:DD:HH:MM to shift the exif dates."
+        "shift-exif", parents=[parent_parser], help="YY:MM:DD:HH:MM to shift the exif dates."
     )
-    parser_shift.add_argument("--by", help="YY:MM:DD:HH:MM to shift the exif dates.")
+    parser_shift.add_argument(
+        "--years",
+        default=0,
+        type=int,
+        help="Number of years to shift. This is applied to year directly and will not affect month, day, etc of the dates.",
+    )
+    parser_shift.add_argument(
+        "--months",
+        default=0,
+        type=int,
+        help="Number of months to shift. This is applied to month (and year) directly and will not affect year, day, etc.",
+    )
+    parser_shift.add_argument("--weeks", default=0, type=int, help="Number of weeks to shift")
+    parser_shift.add_argument("-d", "--days", default=0, type=int, help="Number of days to shift")
+    parser_shift.add_argument("--hours", default=0, type=int, help="Number of hours to shift")
+    parser_shift.add_argument("--minutes", default=0, type=int, help="Number of minutes to shift")
+    parser_shift.add_argument("--seconds", default=0, type=int, help="Number of seconds to shift")
     parser_shift.set_defaults(func=shift_exif_date)
     #
     # set dates of exif
@@ -281,7 +305,6 @@ def app():
 
     # calling the associated functions
     args = parser.parse_args()
-    confirmed = args.__confirm__
     args.func(args)
 
 

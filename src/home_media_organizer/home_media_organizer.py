@@ -6,16 +6,11 @@ import fnmatch
 import json
 import os
 import threading
-from collections import defaultdict
 from multiprocessing import Pool
 from queue import Queue
 
-from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
-from .media_file import MediaFile, ExifTool, date_func
-
-
-confirmed = False
+from .media_file import ExifTool, date_func
 
 
 def get_response(msg, allowed=None):
@@ -24,11 +19,8 @@ def get_response(msg, allowed=None):
         print(msg)
         return True
     while True:
-        res = input(f'{msg} (y/n/a{"/" if allowed else ""}{"/".join(allowed or [])})? ')
-        if res == "a":
-            confirmed = True
-            return True
-        elif res == "y":
+        res = input(f'{msg} (y/n/{"/" if allowed else ""}{"/".join(allowed or [])})? ')
+        if res == "y":
             return True
         elif res == "n":
             return False
