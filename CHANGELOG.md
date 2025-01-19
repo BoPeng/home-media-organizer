@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2025-01-18
+## [0.3.0]
 
-- Initial release
+- Expand `--with-exif` and `--without-exif` to allow single `key` and allow `*` in `key`.
+- Caching expensive operations such as md5 calculation and file viewable/playable tests, and add option `--no-cache` to invalidate the cache.
 
 ## [0.2.0] - 2025-01-18
 
 - Add `hmo validate`
+
+## [0.1.0] - 2025-01-18
+
+- Initial release
 
 ### Added
 

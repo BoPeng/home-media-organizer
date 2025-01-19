@@ -1,5 +1,6 @@
 import platform
 import tempfile
+from datetime import datetime
 
 import joblib
 import rich
@@ -7,11 +8,16 @@ from PIL import Image, UnidentifiedImageError
 
 try:
     import ffmpeg
+import hashlib
 except ImportError:
     ffmpeg = None
 
 cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
 mem = joblib.Memory(cachedir, verbose=0)
+
+
+def clear_cache():
+    mem.clear()
 
 
 def get_response(msg, allowed=None):
@@ -58,3 +64,34 @@ def mpg_playable(file_path):
     except ffmpeg.Error:
         # print(f"Error: {e.stderr.decode('utf-8')}")
         return False
+
+@mem.cache
+def calculate_file_md5(file_path):
+    md5_hash = hashlib.md5()
+    with open(file_path, "rb") as f:
+        # Read and update hash in chunks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            md5_hash.update(byte_block)
+    return md5_hash.hexdigest()
+
+def calculate_pattern_length(pattern):
+    length = 0
+    i = 0
+    while i < len(pattern):
+        if pattern[i] == "%":
+            if pattern[i + 1] in ["Y"]:
+                length += 4
+            elif pattern[i + 1] in ["m", "d", "H", "M", "S"]:
+                length += 2
+            i += 2
+        else:
+            length += 1
+            i += 1
+    return length
+
+
+def extract_date_from_filename(date_str, pattern):
+    # Calculate the length of the date string based on the pattern
+    date_length = calculate_pattern_length(pattern)
+    # Extract the date part from the filename
+    return datetime.strptime(date_str[:date_length], pattern)

@@ -12,7 +12,13 @@ from tqdm import tqdm
 from . import __version__
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
-from .utils import get_response, jpeg_openable, mpg_playable
+from .utils import (
+    extract_date_from_filename,
+    get_response,
+    jpeg_openable,
+    mpg_playable,
+    clear_cache,
+)
 
 
 # command line tools
@@ -54,7 +60,9 @@ def check_media_file(item, remove=False, confirmed=False):
             os.remove(item)
 
 
-def check_media_files(args):
+def validate_media_files(args):
+    if args.no_cache:
+        clear_cache()
     if args.confirmed or not args.remove:
         process_with_queue(
             args,
@@ -71,18 +79,16 @@ def get_file_size(filename):
     return (filename, os.path.getsize(filename))
 
 
-def get_file_md5(filename, md5_cache):
-    return (filename, MediaFile(filename).calculate_md5(md5_cache).md5)
+def get_file_md5(filename):
+    return (filename, MediaFile(filename).calculate_md5().md5)
 
 
 def remove_duplicated_files(args):
+    if args.no_cache:
+        clear_cache()
+
     md5_files = defaultdict(list)
     size_files = defaultdict(list)
-
-    if os.path.isfile("md5.json"):
-        md5_cache = json.load(open("md5.json"))
-    else:
-        md5_cache = {}
 
     with Pool() as pool:
         # get file size
@@ -94,16 +100,10 @@ def remove_duplicated_files(args):
         # get md5 for files with the same size
         potential_duplicates = sum([x for x in size_files.values() if len(x) > 1], [])
         for filename, md5 in tqdm(
-            pool.starmap(
-                get_file_md5, zip(potential_duplicates, [md5_cache] * len(potential_duplicates))
-            ),
+            pool.starmap(get_file_md5, potential_duplicates),
             desc="Checking file content",
         ):
-            md5_cache[os.path.abspath(filename)] = md5
             md5_files[md5].append(filename)
-
-    with open("md5.json", "w") as store:
-        json.dump(md5_cache, store, indent=4)
 
     #
     for md5, files in md5_files.items():
@@ -140,11 +140,12 @@ def shift_exif_date(args):
             hours=args.hours,
             minutes=args.minutes,
             seconds=args.seconds,
+            date_keys=args.date_keys,
             confirmed=args.confirmed,
         )
 
 
-def set_exif_date(args):
+def set_exif_data(args):
     for item in iter_files(args):
         m = MediaFile(item)
         values = {}
@@ -160,13 +161,13 @@ def set_exif_date(args):
         # from filename?
         if args.from_filename:
             try:
-                date = datetime.strptime(os.path.basename(m.filename), args.from_filename)
+                date = extract_date_from_filename(os.path.basename(m.filename), args.from_filename)
                 for k in args.date_keys:
-                    values[k] = date
+                    values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
 
             except ValueError:
                 rich.print(
-                    f"[red]Invalid date format {args.from_filename}[/red] for filename {m.filename}"
+                    f"[red]Invalid date format {args.from_filename} for filename {m.filename}[/red]"
                 )
                 sys.exit(1)
         elif args.from_date:
@@ -176,7 +177,7 @@ def set_exif_date(args):
                 rich.print(f"[red]Invalid date format {args.from_date}[/red]")
                 sys.exit(1)
             for k in args.date_keys:
-                values[k] = date
+                values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
         #
         if values:
             m.set_exif(values, args.overwrite, args.confirmed)
@@ -213,10 +214,17 @@ def get_common_args_parser():
         help="Directories or files to be processed",
     )
     parser.add_argument(
-        "--with-exif", nargs="*", help="Process only media files with specified exif data."
+        "--with-exif",
+        nargs="*",
+        help="""Process only media files with specified exif data, which can be "key=value",
+            or "key" while key in the second case can contain "*" for wildcard matching.""",
     )
     parser.add_argument(
-        "--without-exif", nargs="*", help="Process only media files without specified exif data."
+        "--without-exif",
+        nargs="*",
+        help="""Process only media files without specified exif data. Both "key=value" and
+            "key" and wildcard character "*" in key are supported.
+        """,
     )
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
@@ -276,16 +284,21 @@ def app():
     #
     # check jpeg
     #
-    parser_check = subparsers.add_parser(
+    parser_validate = subparsers.add_parser(
         "validate",
         parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Check if media file is corrupted",
     )
-    parser_check.add_argument(
+    parser_validate.add_argument(
         "--remove", action="store_true", help="If the file if it is corrupted."
     )
-    parser_check.set_defaults(func=check_media_files)
+    parser_validate.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="invalidate cached validation results and re-validate all files again.",
+    )
+    parser_validate.set_defaults(func=validate_media_files)
     #
     # rename file to its canonical name
     #
@@ -309,6 +322,11 @@ def app():
         parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Remove duplicated files.",
+    )
+    parser_dedup.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="invalidate cached file signatures and re-examine all file content.",
     )
     parser_dedup.set_defaults(func=remove_duplicated_files)
     #
@@ -361,6 +379,12 @@ def app():
     parser_shift.add_argument("--hours", default=0, type=int, help="Number of hours to shift")
     parser_shift.add_argument("--minutes", default=0, type=int, help="Number of minutes to shift")
     parser_shift.add_argument("--seconds", default=0, type=int, help="Number of seconds to shift")
+    parser_shift.add_argument(
+        "--date-keys",
+        nargs="+",
+        help="""A list of date keys that will be set. All keys ending with `Date`
+         will be changed if left unspecified. """,
+    )
     parser_shift.set_defaults(func=shift_exif_date)
     #
     # set dates of EXIF
@@ -386,8 +410,9 @@ def app():
         help="""Try to extract date information from filename of
             media files. A pattern need to be specified to correctly extract
             date information from the filename. For example,
-            --from-filename %%Y%%m%%d_%%H%%M%%S.jpg will assume that the files
-            have the standard filename,""",
+            --from-filename %%Y%%m%%d_%%H%%M%%S will assume that the files
+            have the standard filename, Only the pattern for the date part
+            of the filename is needed.""",
     )
     parser_set_exif.add_argument(
         "--from-date",
@@ -416,7 +441,7 @@ def app():
         help="""If specified, overwrite existing exif data.
         """,
     )
-    parser_set_exif.set_defaults(func=set_exif_date)
+    parser_set_exif.set_defaults(func=set_exif_data)
     #
     # cleanup
     #

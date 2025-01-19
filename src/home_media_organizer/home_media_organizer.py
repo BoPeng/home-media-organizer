@@ -1,9 +1,9 @@
 import fnmatch
 import os
-import rich
 import threading
 from queue import Queue
 
+import rich
 from tqdm import tqdm
 
 from .media_file import ExifTool, date_func
@@ -18,16 +18,40 @@ def iter_files(args):
             return False
         if args.with_exif or args.without_exif:
             with ExifTool() as e:
-                metadata = e.get_metadata(filename)
+                metadata = {
+                    x: y for x, y in e.get_metadata(filename).items() if not x.startswith("File:")
+                }
             for cond in args.without_exif or []:
-                k, v = cond.split("=")
-                if k in metadata and metadata[k] == v:
-                    return False
+                if "=" in cond:
+                    k, v = cond.split("=")
+                    if "*" in k:
+                        raise ValueError(
+                            f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
+                        )
+                    if k in metadata and metadata[k] == v:
+                        return False
+                elif "*" in cond:
+                    if any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
+                        return False
+                else:
+                    if cond in metadata:
+                        return False
             match = True
             for cond in args.with_exif or []:
-                k, v = cond.split("=")
-                if k not in metadata or metadata[k] != v:
-                    match = False
+                if "=" in cond:
+                    k, v = cond.split("=")
+                    if "*" in k:
+                        raise ValueError(
+                            f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
+                        )
+                    if k not in metadata or metadata[k] != v:
+                        match = False
+                elif "*" in cond:
+                    if not any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
+                        match = False
+                else:
+                    if cond not in metadata:
+                        match = False
             return match
         return True
 

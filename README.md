@@ -95,6 +95,10 @@ hmo list 2000 --file-types '*.mp4'
 # list only files with certain exif value.
 # This tends to be slow since it will need to scan the EXIF data of all files
 hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
+# with any key
+hmo list 2009 --with-exif QuickTime:AudioFormat
+# without any Date related EXIF meta data (external File: date is not considered)
+hmo list 2009 --without-exif '*Date'
 ```
 
 ### Show EXIF information of one of more files
@@ -154,10 +158,11 @@ This operation will set
 
 where at least the first one appears to be [what PLEX server uses](https://exiftool.org/forum/index.php?topic=13287.0).
 
-Another way to get the date is to obtain it from the filename. In this case, a pattern used by [datetime.strptime](https://docs.python.org/3/library/datetime.html) needs to be specified to extract date information from filename. For example, if the filename is `video-2000-07-29 10:32:05.mp4`, you can use
+Another way to get the date is to obtain it from the filename. In this case, a pattern used by [datetime.strptime](https://docs.python.org/3/library/datetime.html) needs to be specified to extract date information from filename. For example, if the filename is `video-2000-07-29 10:32:05-party.mp4`, you can use
 
 ```
-hmo set-exif path/to/video-200-07-29 10:32:05.mp4 --from-filename 'video-%Y-%m-%d %H:%M:%S.mp4'
+# note that the filename pattern is only needed for the starting date part.
+hmo set-exif path/to/video-200-07-29 10:32:05.mp4 --from-filename 'video-%Y-%m-%d %H:%M:%S'
 ```
 
 You can also specify meta information as a list of `KEY=VALUE` pairs directly, as in
@@ -178,6 +183,8 @@ hmo show-exif path/to/anotherfile --keys '*Date' --format text \
 Here we allow `hom set-exif` to read key=value pairs from standard input
 
 **NOTE**: Writing exif to some file types (e.g. `*.mpg`) are not supported, so the operation of changing filenames may fail on some media files.
+
+**NOTE**: Please see the notes regarding `File:FileModifyDate` if you encounter files without proper EXIF date information and cannot be modified by exiftool.
 
 ### Shift all dates by certain dates
 
@@ -255,7 +262,7 @@ If you would like to remove the corrupted files, likely after you have examined 
 hmo validate 2014 --remove --yes --file-types '*.jpg'
 ```
 
-**NOTE**: Please do not use `--remove --yes` for `mp4` files without manual verification. `ffmpeg` might fail to play the files even if the files are playable. Use `hmo validate` to get a list, try to open the files using various video players, confirming if the files are corrupted before removing them with the `--remove --yes` options.
+**NOTE**: `bmo validate` caches the result of file validation so it will be pretty fast to repeat the command with `--remove --yes`. If you do not want to use the cache, for example after you restored the file from backup, you can invalidate the cache with option `--no-cache`.
 
 ### Remove duplicated files
 
@@ -339,6 +346,49 @@ hmo rename -h
 ```
 
 If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
+
+## Special Notes
+
+### Modifying `File:FileModifyDate`
+
+For files that do not have date related EXIF information, PLEX server will use file modify date to organize them. When you check the EXIF information of a file using `hmo`, this information is shown as metadata `File:FileModifyDate`, and you can use the same `hmo shift-exif` and `hmo set-exif` interface to modify this information.
+
+For example, if you a video about your wedding that happened last year does not come with any EXIF information,
+
+```sh
+> hmo show-exif wedding.mpg --keys '*Date'
+```
+
+```json
+{
+  "File:FileModifyDate": "2020:01:18 10:13:33-06:00",
+  "File:FileAccessDate": "2020:01:18 10:13:33-06:00",
+  "File:FileInodeChangeDate": "2025:01:19 10:48:00-06:00"
+}
+```
+
+You can set the modified date as follows:
+
+```sh
+> hmo shift-exif wedding.mpg --date-keys File:FileModifyDate --year=-1 --month 3
+> hmo show-exif wedding.mpg --keys '*Date'
+```
+
+```json
+{
+  "File:FileModifyDate": "2019:04:18 10:13:33-05:00",
+  "File:FileAccessDate": "2019:04:18 10:13:33-05:00",
+  "File:FileInodeChangeDate": "2025:01:19 10:50:23-06:00"
+}
+```
+
+However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
+
+### More example commands
+
+```sh
+
+```
 
 ## TODO
 

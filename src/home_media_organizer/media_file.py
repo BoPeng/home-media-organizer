@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import rich
 from PIL import Image, UnidentifiedImageError
 
-from .utils import get_response
+from .utils import get_response, calculate_file_md5
 
 
 def Image_date(filename):
@@ -187,20 +187,9 @@ class MediaFile:
     def size(self):
         return os.path.getsize(self.fullname)
 
-    def calculate_md5(self, md5_store):
-        if self.fullname in md5_store:
-            self.md5 = md5_store[self.fullname]
-            # print(f"{self.md5} <<- {self.filename}")
-            return self
+    def calculate_md5(self):
         if self.md5 is None:
-            # improve the following line to better handle large files by reading chunks of files
-            md5 = hashlib.md5()
-            with open(self.fullname, "rb") as f:
-                for chunk in iter(lambda: f.read(1024 * 1024 * 1024), b""):
-                    md5.update(chunk)
-            self.md5 = md5.hexdigest()
-            md5_store[self.fullname] = self.md5
-            # print(f"{self.md5} <- {self.filename}")
+            self.md5 = calculate_file_md5
         return self
 
     def get_date(self):
@@ -263,7 +252,16 @@ class MediaFile:
         return os.path.join(root, subdir, album or "")
 
     def shift_exif(
-        self, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, confirmed=False
+        self,
+        years=0,
+        months=0,
+        weeks=0,
+        days=0,
+        hours=0,
+        minutes=0,
+        seconds=0,
+        date_keys=None,
+        confirmed=False,
     ):  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
         # Calculate the total shift in timedelta
@@ -274,46 +272,62 @@ class MediaFile:
             metadata = e.get_metadata(self.fullname)
             changes = {}
             for k, v in metadata.items():
-                if k.endswith("Date"):
-                    # print(f'{k}: {v}')
-                    if "-" in v:
-                        hrs, sec = v.split("-")
-                        sec = "-" + sec
-                    elif "+" in v:
-                        hrs, sec = v.split("+")
-                        sec = "+" + sec
-                    else:
-                        hrs = v
-                        sec = ""
-                    original_datetime = datetime.strptime(hrs, "%Y:%m:%d %H:%M:%S")
-                    if years:
+                if not k.endswith("Date") or (date_keys and k not in date_keys):
+                    continue
+                # print(f'{k}: {v}')
+                if "-" in v:
+                    hrs, sec = v.split("-")
+                    sec = "-" + sec
+                elif "+" in v:
+                    hrs, sec = v.split("+")
+                    sec = "+" + sec
+                else:
+                    hrs = v
+                    sec = ""
+                original_datetime = datetime.strptime(hrs, "%Y:%m:%d %H:%M:%S")
+                if years:
+                    original_datetime = original_datetime.replace(
+                        year=original_datetime.year + years
+                    )
+                #
+                if months:
+                    new_month = original_datetime.month + months
+                    if new_month > 12:
                         original_datetime = original_datetime.replace(
-                            year=original_datetime.year + years
+                            year=original_datetime.year + new_month // 12
                         )
+                        new_month = new_month % 12
+                    elif new_month < 1:
+                        original_datetime = original_datetime.replace(
+                            year=original_datetime.year + new_month // 12 - 1
+                        )
+                        new_month = new_month % 12 + 12
                     #
-                    if months:
-                        new_month = original_datetime.month + months
-                        if new_month > 12:
-                            original_datetime = original_datetime.replace(
-                                year=original_datetime.year + new_month // 12
-                            )
-                            new_month = new_month % 12
-                        elif new_month < 1:
-                            original_datetime = original_datetime.replace(
-                                year=original_datetime.year + new_month // 12 - 1
-                            )
-                            new_month = new_month % 12 + 12
-                        #
-                        original_datetime = original_datetime.replace(month=new_month)
-                    #
-                    new_datetime = original_datetime + shift_timedelta
-                    if new_datetime <= datetime.now():
-                        new_v = new_datetime.strftime("%Y:%m:%d %H:%M:%S") + sec
-                        changes[k] = new_v
+                    original_datetime = original_datetime.replace(month=new_month)
+                #
+                new_datetime = original_datetime + shift_timedelta
+                if new_datetime >= datetime.now():
+                    rich.print(f"[magenta]Ignore future date {new_datetime}[/magenta].")
+                elif k == "File:FileModifyDate":
+                    if confirmed or get_response(
+                        f"Modify file modified date {os.path.basename(self.fullname)} to {new_datetime}?"
+                    ):
+                        # Convert the new modification time to a timestamp
+                        new_mod_time = new_datetime.timestamp()
+                        # Set the new modification time
+                        os.utime(self.fullname, (new_mod_time, new_mod_time))
+                elif k.startswith("File:"):
+                    rich.print(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
+                else:
+                    new_v = new_datetime.strftime("%Y:%m:%d %H:%M:%S") + sec
+                    changes[k] = new_v
+            if not changes:
+                return
             for k, new_v in changes.items():
                 rich.print(
                     f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
                 )
+            #
             if confirmed or get_response(
                 f"Shift dates of {os.path.basename(self.fullname)} as shown above?"
             ):
@@ -325,12 +339,33 @@ class MediaFile:
             metadata = e.get_metadata(self.fullname)
             changes = {}
             for k, v in values.items():
-                if k in metadata and not override:
-                    print(f"Ignore existing {k} = {metadata[k]}")
+                if k in metadata and not override and not k.startswith("File:"):
+                    rich.print(f"[magenta]Ignore existing {k} = {metadata[k]}[/magenta]")
                     continue
-                rich.print(f"Set {k} of {self.filename} to [blue]{v}[/blue]")
-                changes[k] = v
+                if k == "File:FileModifyDate":
+                    if confirmed or get_response(
+                        f"Modify file modified date {os.path.basename(self.fullname)} to {v}?"
+                    ):
+                        try:
+                            new_datetime = datetime.strptime(v, "%Y:%m:%d %H:%M:%S")
+                            # Convert the new modification time to a timestamp
+                            new_mod_time = new_datetime.timestamp()
+                            # Set the new modification time
+                            os.utime(self.fullname, (new_mod_time, new_mod_time))
+                            rich.print(
+                                f"Modified date of [magenta]{self.filename}[/magenta] is set to [blue]{v}[/blue]"
+                            )
+                        except ValueError:
+                            rich.print(f"[red]Invalid date format {v}[/red]")
+                elif k.startswith("File:"):
+                    rich.print(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
+                else:
+                    rich.print(f"Set {k} of {self.filename} to [blue]{v}[/blue]")
+                    changes[k] = v
+            if not changes:
+                return
             if confirmed or get_response(f"Set exif of {self.fullname}"):
+                rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.update_metadata(self.fullname, **changes)
 
     def name_ok(self):
