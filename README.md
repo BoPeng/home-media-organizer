@@ -15,7 +15,7 @@
 
 </div>
 
-A Swiss Army Knife tool to help fix, organize, and maintain your home media library.
+A versatile tool to fix, organize, and maintain your home media library.
 
 - GitHub repo: <https://github.com/BoPeng/home-media-organizer.git>
 - Documentation: <https://home-media-organizer.readthedocs.io>

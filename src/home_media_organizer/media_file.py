@@ -2,19 +2,16 @@
 
 import filecmp
 import fnmatch
-import json
 import os
 import re
 import shutil
-import subprocess
-import sys
 from datetime import datetime, timedelta
 
 import rich
 from exiftool import ExifToolHelper
 from PIL import Image, UnidentifiedImageError
 
-from .utils import calculate_file_md5, get_response
+from .utils import get_response
 
 
 def Image_date(filename):

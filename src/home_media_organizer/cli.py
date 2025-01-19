@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 import sys
 from collections import defaultdict
@@ -26,7 +25,6 @@ from .utils import (
 #
 def list_files(args):
     """List all or selected media files."""
-
     for item in iter_files(args):
         print(item)
 
@@ -249,7 +247,7 @@ def get_common_args_parser():
     return parser
 
 
-def app():
+def parse_args(arg_list):
     parser = argparse.ArgumentParser(
         description="""An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library""",
         epilog="""See documentation at https://github.com/BoPeng/home-media-organizer/""",
@@ -257,7 +255,7 @@ def app():
         # parents=[],
     )
     parser.add_argument(
-        "-v", "--version", action="version", version="Home Media Organizer " + __version__
+        "-v", "--version", action="version", version="home-media-organizer, version " + __version__
     )
     # common options for all
     parent_parser = get_common_args_parser()
@@ -478,12 +476,12 @@ def app():
     )
     parser_cleanup.set_defaults(func=cleanup)
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
-
     # calling the associated functions
-    args = parser.parse_args()
+    return parser.parse_args(arg_list)
+
+
+def app(arg_list=None):
+    args = parse_args(arg_list)
     args.func(args)
 
 
