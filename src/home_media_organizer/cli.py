@@ -44,17 +44,27 @@ def rename_files(args):
             rename_file(item, args.format, args.confirmed)
 
 
-def check_media_file(item, remove=False):
+def check_media_file(item, remove=False, confirmed=False):
     if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
         rich.print(f"[red][bold]{item}[/bold] is corrupted.[/red]")
-        if remove and get_response("Remove it?", ["y", "n"]) == "y":
+        if remove and (confirmed or get_response("Remove it?", ["y", "n"]) == "y"):
+            rich.print(f"[red][bold]{item}[/bold] is removed.[/red]")
             os.remove(item)
 
 
 def check_media_files(args):
-    process_with_queue(args, lambda x, remove=args.remove: check_media_file(x, remove=remove))
+    if args.confirmed or not args.remove:
+        process_with_queue(
+            args,
+            lambda x, remove=args.remove, confirmed=args.confirmed: check_media_file(
+                x, remove=remove, confirmed=confirmed
+            ),
+        )
+    else:
+        for item in iter_files(args):
+            check_media_file(item, remove=args.remove, confirmed=args.confirmed)
 
 
 def get_file_size(filename):

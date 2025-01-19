@@ -1,10 +1,17 @@
-from PIL import Image, UnidentifiedImageError
+import platform
+import tempfile
+
+import joblib
 import rich
+from PIL import Image, UnidentifiedImageError
 
 try:
     import ffmpeg
 except ImportError:
     ffmpeg = None
+
+cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
+mem = joblib.Memory(cachedir, verbose=0)
 
 
 def get_response(msg, allowed=None):
@@ -19,6 +26,7 @@ def get_response(msg, allowed=None):
         print("Invalid response, please try again")
 
 
+@mem.cache
 def jpeg_openable(file_path):
     try:
         with Image.open(file_path) as img:
@@ -32,6 +40,7 @@ def jpeg_openable(file_path):
         return False
 
 
+@mem.cache
 def mpg_playable(file_path):
     if not ffmpeg:
         rich.print("[red]ffmpeg not installed, skip[/red]")
@@ -46,6 +55,6 @@ def mpg_playable(file_path):
             if len(video_streams) > 0:
                 return True
         return False
-    except ffmpeg.Error as e:
+    except ffmpeg.Error:
         # print(f"Error: {e.stderr.decode('utf-8')}")
         return False

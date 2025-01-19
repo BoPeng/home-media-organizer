@@ -47,6 +47,14 @@ This tool can
    pip install home-media-organizer
    ```
 
+3. (Optional) Install **ffmpeg** with
+
+   ```sh
+   conda install ffmpeg -c conda-forge
+   ```
+
+   or some other methods suitable for your environment. This tool is only used to validate if your mp4/mpg files are playable using command `hmo validate`.
+
 ## How to use this tool
 
 ### Overall assumptions
@@ -235,7 +243,7 @@ hmo show-exif 2020/Jul/20240422_023929.mp4 --keys '*Date'
 
 Unfortunately, due to various reasons, media files stored on CDs, DVDs, thumb drives, and even hard drives can become corrupted. These corrupted files make it difficult to navigate and can cause trouble with programs such as PLEX.
 
-HMO provides a tool called `validate` to identify and potentially remove corrupted JPEG or MPG files. Support for other files could be added later.
+HMO provides a tool called `validate` to identify and potentially remove corrupted `JPEG`, `MPG`, `MP4` files. Support for other files could be added later.
 
 ```sh
 hmo validate 2014
@@ -244,8 +252,10 @@ hmo validate 2014
 If you would like to remove the corrupted files, likely after you have examined the output from the `validate` command, you can
 
 ```sh
-hmo validate 2014 --remove --yes
+hmo validate 2014 --remove --yes --file-types '*.jpg'
 ```
+
+**NOTE**: Please do not use `--remove --yes` for `mp4` files without manual verification. `ffmpeg` might fail to play the files even if the files are playable. Use `hmo validate` to get a list, try to open the files using various video players, confirming if the files are corrupted before removing them with the `--remove --yes` options.
 
 ### Remove duplicated files
 

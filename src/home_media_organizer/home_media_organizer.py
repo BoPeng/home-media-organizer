@@ -8,22 +8,6 @@ from tqdm import tqdm
 from .media_file import ExifTool, date_func
 
 
-class Worker(threading.Thread):
-    def __init__(self, queue, task):
-        threading.Thread.__init__(self)
-        self.queue = queue
-        self.task = task
-        self.daemon = True
-
-    def run(self):
-        while True:
-            item = self.queue.get()
-            if item is None:
-                break
-            self.task(item)
-            self.queue.task_done()
-
-
 def iter_files(args):
     # if file is selected based on args.matches,, args.with_exif, args.without_exif
     def is_selected(filename):
@@ -56,6 +40,22 @@ def iter_files(args):
                 for f in files:
                     if is_selected(os.path.join(root, f)):
                         yield os.path.join(root, f)
+
+
+class Worker(threading.Thread):
+    def __init__(self, queue, task):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.task = task
+        self.daemon = True
+
+    def run(self):
+        while True:
+            item = self.queue.get()
+            if item is None:
+                break
+            self.task(item)
+            self.queue.task_done()
 
 
 def process_with_queue(args, func):
