@@ -4,6 +4,7 @@ import threading
 from queue import Queue
 
 import rich
+from exiftool import ExifToolHelper
 from tqdm import tqdm
 
 from .media_file import ExifTool, date_func
@@ -17,7 +18,7 @@ def iter_files(args):
         if os.path.splitext(filename)[-1] not in date_func:
             return False
         if args.with_exif or args.without_exif:
-            with ExifTool() as e:
+            with ExifToolHelper() as e:
                 metadata = {
                     x: y for x, y in e.get_metadata(filename).items() if not x.startswith("File:")
                 }

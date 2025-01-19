@@ -11,6 +11,7 @@ import sys
 from datetime import datetime, timedelta
 
 import rich
+from exiftool import ExifToolHelper
 from PIL import Image, UnidentifiedImageError
 
 from .utils import calculate_file_md5, get_response
@@ -26,57 +27,9 @@ def Image_date(filename):
         return None
 
 
-class ExifTool(object):
-
-    sentinel = "{ready}\n"
-
-    def __init__(self, executable="exiftool"):
-        self.executable = executable
-
-    def __enter__(self):
-        self.process = subprocess.Popen(
-            [self.executable, "-stay_open", "True", "-@", "-"],
-            universal_newlines=True,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-        )
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.process.stdin.write("-stay_open\nFalse\n")
-        self.process.stdin.flush()
-
-    def execute(self, *args):
-        args = args + ("-execute\n",)
-        self.process.stdin.write(str.join("\n", args))
-        self.process.stdin.flush()
-        output = ""
-        fd = self.process.stdout.fileno()
-        while not output.endswith(self.sentinel):
-            output += os.read(fd, 4096).decode("utf-8")
-        return output[: -len(self.sentinel)]
-
-    def get_metadata(self, *filenames):
-        try:
-            return json.loads(self.execute("-G", "-j", "-n", *filenames))[0]
-        except KeyboardInterrupt:
-            sys.exit(1)
-        except:
-            return {}
-
-    def update_metadata(self, filename, **kwargs):
-        args = [
-            f"-{k}={v}"
-            for k, v in kwargs.items()
-            if k not in ("File:FileAccessDate", "File:FileInodeChangeDate")
-        ]
-        # print(f"excute {args} {filename}")
-        return self.execute(*args, filename)
-
-
 def exiftool_date(filename):
-    with ExifTool() as e:
-        metadata = e.get_metadata(filename)
+    with ExifToolHelper() as e:
+        metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
             return metadata["QuickTime:MediaModifyDate"]
         if "QuickTime:MediaCreateDate" in metadata:
@@ -207,8 +160,8 @@ class MediaFile:
         return self.date
 
     def show_exif(self, keys=None, format=None):
-        with ExifTool() as e:
-            metadata = e.get_metadata(self.fullname)
+        with ExifToolHelper() as e:
+            metadata = e.get_metadata(self.fullname)[0]
             if keys is not None:
                 if all("*" not in key for key in keys):
                     metadata = {k: metadata.get(k, "NA") for k in keys}
@@ -262,8 +215,8 @@ class MediaFile:
         shift_timedelta = timedelta(
             days=days, hours=hours, weeks=weeks, minutes=minutes, seconds=seconds
         )
-        with ExifTool() as e:
-            metadata = e.get_metadata(self.fullname)
+        with ExifToolHelper() as e:
+            metadata = e.get_metadata(self.fullname)[0]
             changes = {}
             for k, v in metadata.items():
                 if not k.endswith("Date") or (date_keys and k not in date_keys):
@@ -325,12 +278,12 @@ class MediaFile:
             if confirmed or get_response(
                 f"Shift dates of {os.path.basename(self.fullname)} as shown above?"
             ):
-                e.update_metadata(self.fullname, **changes)
+                e.set_tags([self.fullname], tags=changes)
 
     def set_exif(self, values, override=False, confirmed=False):
         # add one or more 0: if the format is not YY:DD:HH:MM
-        with ExifTool() as e:
-            metadata = e.get_metadata(self.fullname)
+        with ExifToolHelper() as e:
+            metadata = e.get_metadata(self.fullname)[0]
             changes = {}
             for k, v in values.items():
                 if k in metadata and not override and not k.startswith("File:"):
@@ -360,7 +313,7 @@ class MediaFile:
                 return
             if confirmed or get_response(f"Set exif of {self.fullname}"):
                 rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
-                e.update_metadata(self.fullname, **changes)
+                e.set_tags([self.fullname], tags=changes)
 
     def name_ok(self):
         return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)
