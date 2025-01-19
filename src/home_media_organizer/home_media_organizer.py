@@ -13,37 +13,6 @@ from tqdm import tqdm
 from .media_file import ExifTool, date_func
 
 
-def get_response(msg, allowed=None):
-    global confirmed
-    if confirmed:
-        print(msg)
-        return True
-    while True:
-        res = input(f'{msg} (y/n/{"/" if allowed else ""}{"/".join(allowed or [])})? ')
-        if res == "y":
-            return True
-        elif res == "n":
-            return False
-        elif allowed and res in allowed:
-            return res
-
-
-def cleanup(args):
-    for item in args.items:
-        for root, dirs, files in os.walk(item):
-            for f in files:
-                if any(fnmatch.fnmatch(f, x) for x in args.removable_files):
-                    print(f"Remove {os.path.join(root, f)}")
-                    os.remove(os.path.join(root, f))
-            # empty directories are always removed when traverse the directory
-            if not os.listdir(root):
-                try:
-                    print(f"Remove empty directory {root}")
-                    os.rmdir(root)
-                except:
-                    pass
-
-
 class Worker(threading.Thread):
     def __init__(self, queue, task):
         threading.Thread.__init__(self)
@@ -64,7 +33,7 @@ def iter_files(args):
     # if file is selected based on args.matches,, args.with_exif, args.without_exif
     def is_selected(filename):
         global date_func
-        if args.file_types and not any(filename.endswith(x) for x in args.file_types):
+        if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
         if os.path.splitext(filename)[-1] not in date_func:
             return False

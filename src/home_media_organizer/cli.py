@@ -5,9 +5,15 @@ from .home_media_organizer import *
 from .media_file import MediaFile
 import argparse
 import sys
+from datetime import datetime
+from PIL import Image, UnidentifiedImageError
+import rich
+from collections import defaultdict
 
 
-#
+from .utils import get_response
+
+
 # command line tools
 #
 def list_files(args):
@@ -23,18 +29,18 @@ def show_exif(args):
         m.show_exif(args.keys, args.format)
 
 
-def rename_file(item):
+def rename_file(item, format, confirm):
     m = MediaFile(item)
-    m.rename()
+    m.rename(format=format, confirmed=confirm)
 
 
 def rename_files(args):
-    if args.yees:
-        process_with_queue(args, rename_file)
+    if args.confirmed:
+        process_with_queue(args, lambda x, format=args.format: rename_file(x, format, True))
     else:
         for item in iter_files(args):
-            print(f"Processing {item}")
-            rename_file(item)
+            rich.print(f"Processing [blue]{item}[/blue]")
+            rename_file(item, args.format, args.confirmed)
 
 
 def check_jpeg(item, remove=False):
@@ -44,12 +50,9 @@ def check_jpeg(item, remove=False):
         i = Image.open(item)
         i.close()
     except UnidentifiedImageError:
-        if remove:
-            print(f"Remove {item}")
+        rich.print(f"[red][bold]{item}[/bold] is corrupted.[/red]")
+        if remove and get_response("Remove it?", ["y", "n"]) == "y":
             os.remove(item)
-        else:
-            print(f"Corrupted {item}")
-        return
 
 
 def check_jpeg_files(args):
@@ -75,15 +78,20 @@ def remove_duplicated_files(args):
 
     with Pool() as pool:
         # get file size
-        for filename, filesize in pool.map(get_file_size, iter_files(args)):
+        for filename, filesize in tqdm(
+            pool.map(get_file_size, iter_files(args)), desc="Checking file size"
+        ):
             size_files[filesize].append(filename)
         #
         # get md5 for files with the same size
         potential_duplicates = sum([x for x in size_files.values() if len(x) > 1], [])
-        for filename, md5 in pool.starmap(
-            get_file_md5,
-            zip(potential_duplicates, [md5_cache] * len(potential_duplicates)),
+        for filename, md5 in tqdm(
+            pool.starmap(
+                get_file_md5, zip(potential_duplicates, [md5_cache] * len(potential_duplicates))
+            ),
+            desc="Checking file content",
         ):
+            md5_cache[os.path.abspath(filename)] = md5
             md5_files[md5].append(filename)
 
     with open("md5.json", "w") as store:
@@ -97,14 +105,20 @@ def remove_duplicated_files(args):
         # keep the one with the deepest path name
         sorted_files = sorted(files, key=len)
         for filename in sorted_files[:-1]:
-            print(f"Remove {filename} that duplicates {sorted_files[-1]} ")
-            os.remove(filename)
+            rich.print(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
+            if args.confirmed or get_response("Remove it?"):
+                os.remove(filename)
 
 
 def organize_files(args):
     for item in iter_files(args):
         m = MediaFile(item)
-        m.move(args.media_root, subdir=args.subdir if args.subdir else m.get_subdir())
+        m.move(
+            media_root=args.media_root,
+            dir_pattern=args.dir_pattern,
+            album=args.album,
+            confirmed=args.confirmed,
+        )
 
 
 def shift_exif_date(args):
@@ -125,14 +139,66 @@ def shift_exif_date(args):
 def set_exif_date(args):
     for item in iter_files(args):
         m = MediaFile(item)
-        m.set_dates(args.set_date)
+        values = {}
+        if "-" in args.values:
+            args.values.remove("-")
+            args.values += sys.stdin.read().strip().split("\n")
+        for item in args.values:
+            if "=" not in item:
+                rich.print(f"[red]Invalid exif value {item}. Should be key=value[/red]")
+                sys.exit(1)
+            k, v = item.split("=", 1)
+            values[k] = v
+        # from filename?
+        if args.from_filename:
+            try:
+                date = datetime.strptime(os.path.basename(m.filename), args.from_filename)
+                for k in args.date_keys:
+                    values[k] = date
+
+            except ValueError:
+                rich.print(
+                    f"[red]Invalid date format {args.from_filename}[/red] for filename {m.filename}"
+                )
+                sys.exit(1)
+        elif args.from_date:
+            try:
+                date = datetime.strptime(args.from_date, "%Y%m%d_%H%M%S")
+            except ValueError:
+                rich.print(f"[red]Invalid date format {args.from_date}[/red]")
+                sys.exit(1)
+            for k in args.date_keys:
+                values[k] = date
+        #
+        if values:
+            m.set_exif(values, args.overwrite, args.confirmed)
+
+
+def cleanup(args):
+    for item in args.items:
+        for root, dirs, files in os.walk(item):
+            for f in files:
+                if any(fnmatch.fnmatch(f, x) for x in args.file_types):
+                    if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):
+                        print(f"Remove {os.path.join(root, f)}")
+                        os.remove(os.path.join(root, f))
+            # empty directories are always removed when traverse the directory
+            if not os.listdir(root):
+                try:
+                    if args.confirmed or get_response(f"Remove empty directory {root}?"):
+                        print(f"Remove empty directory {root}")
+                        os.rmdir(root)
+                except:
+                    pass
 
 
 #
 # User interface
 #
 def get_common_args_parser():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(
+        add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "items",
         nargs="+",
@@ -145,7 +211,7 @@ def get_common_args_parser():
         "--without-exif", nargs="*", help="Process only media files without specified exif data."
     )
     parser.add_argument(
-        "--file-types", nargs="*", help="File types to process, such as .jpg, .mp4."
+        "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
     parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
@@ -163,6 +229,7 @@ def app():
     parser = argparse.ArgumentParser(
         description="""An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library""",
         epilog="""See documentation at https://github.com/BoPeng/home-media-organizer/""",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         # parents=[],
     )
     parser.add_argument(
@@ -174,13 +241,21 @@ def app():
     #
     # List relevant files
     #
-    parser_list = subparsers.add_parser("list", parents=[parent_parser], help="List filename")
+    parser_list = subparsers.add_parser(
+        "list",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[parent_parser],
+        help="List filename",
+    )
     parser_list.set_defaults(func=list_files)
     #
     # show exif of files
     #
     parser_show = subparsers.add_parser(
-        "show-exif", parents=[parent_parser], help="Show all or selected exif information"
+        "show-exif",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[parent_parser],
+        help="Show all or selected exif information",
     )
     parser_show.add_argument("--keys", nargs="*", help="Show all or selected exif")
     parser_show.add_argument(
@@ -194,7 +269,10 @@ def app():
     # check jpeg
     #
     parser_check = subparsers.add_parser(
-        "check-jpeg", parents=[parent_parser], help="Check if JPEG file is corrupted"
+        "check-jpeg",
+        parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Check if JPEG file is corrupted",
     )
     parser_check.add_argument(
         "--remove", action="store_true", help="If the file if it is corrupted."
@@ -206,7 +284,13 @@ def app():
     parser_rename = subparsers.add_parser(
         "rename",
         parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Rename files to their intended name, according to exif or other information.",
+    )
+    parser_rename.add_argument(
+        "--format",
+        default="%Y%m%d_%H%M%S",
+        help="Format of the filename.",
     )
     parser_rename.set_defaults(func=rename_files)
     #
@@ -215,6 +299,7 @@ def app():
     parser_dedup = subparsers.add_parser(
         "dedup",
         parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Remove duplicated files.",
     )
     parser_dedup.set_defaults(func=remove_duplicated_files)
@@ -224,6 +309,7 @@ def app():
     parser_organize = subparsers.add_parser(
         "organize",
         parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Organize files into appropriate folder",
     )
     parser_organize.add_argument(
@@ -232,16 +318,23 @@ def app():
         help="Destination folder, which should be the root of all photos.",
     )
     parser_organize.add_argument(
-        "--subdir",
-        default="{year}/{month}",
-        help="Destination subfolder.",
+        "--dir-pattern",
+        default="%Y/%b",
+        help="Location for the alborum, which is by default derived from media year and month.",
+    )
+    parser_organize.add_argument(
+        "--album",
+        help="Album name for the photo, if need to further organize the media files by albums.",
     )
     parser_organize.set_defaults(func=organize_files)
     #
     # shift date of exif
     #
     parser_shift = subparsers.add_parser(
-        "shift-exif", parents=[parent_parser], help="YY:MM:DD:HH:MM to shift the exif dates."
+        "shift-exif",
+        parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="YY:MM:DD:HH:MM to shift the exif dates.",
     )
     parser_shift.add_argument(
         "--years",
@@ -267,10 +360,52 @@ def app():
     parser_set_exif = subparsers.add_parser(
         "set-exif",
         parents=[parent_parser],
-        help="Set the exif dates if unavailable.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="""Set the exif. Unless --overwrite is specified,
+            existing exif will not be overwritten.""",
     )
     parser_set_exif.add_argument(
-        "date", nargs="+", help="YY:MM:DD:HH:MM to set the exif dates if unavailable."
+        "values",
+        nargs="*",
+        help="""key=value pairs that you can set to the media files.
+          If a value '-' is specified, hmo will read from standard
+          input, which can be the output of how show-exif of another
+          file, essentially allowing you to copy exif information
+          from another file. """,
+    )
+    parser_set_exif.add_argument(
+        "--from-filename",
+        help="""Try to extract date information from filename of
+            media files. A pattern need to be specified to correctly extract
+            date information from the filename. For example, --from-file %Y%m%d_%H%M%S.jpg will assume that the files
+            have the standard filename,""",
+    )
+    parser_set_exif.add_argument(
+        "--from-date",
+        help="""Accept a date string in the YYYYMMDD_HHMMSS and use it
+        to set the date information of all files.""",
+    )
+    parser_set_exif.add_argument(
+        "--date-keys",
+        nargs="+",
+        default=[
+            "EXIF:DateTimeOriginal",
+            "QuickTime:CreateDate",
+            "QuickTime:ModifyDate",
+            "QuickTime:TrackCreateDate",
+            "QuickTime:TrackModifyDate",
+            "QuickTime:MediaCreateDate",
+            "QuickTime:MediaModifyDate",
+        ],
+        help="""A list of date keys that will be set if options
+        --from-date or --from-filename is specified.
+        """,
+    )
+    parser_set_exif.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="""If specified, overwrite existing exif data.
+        """,
     )
     parser_set_exif.set_defaults(func=set_exif_date)
     #
@@ -279,14 +414,16 @@ def app():
     parser_cleanup = subparsers.add_parser(
         "cleanup",
         parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Remove unwanted files and empty directories.",
     )
     parser_cleanup.add_argument(
-        "removable_files",
+        "file-types",
         nargs="*",
         default=[
             "*.MOI",
             "*.PGI",
+            ".LRC",
             "*.THM",
             "Default.PLS",
             ".picasa*.ini",

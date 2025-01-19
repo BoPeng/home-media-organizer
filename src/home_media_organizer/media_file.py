@@ -13,18 +13,11 @@ import shutil
 import subprocess
 from datetime import datetime, timedelta
 
+from PIL import Image, UnidentifiedImageError
+
 import rich
 
-
-def get_response(msg, allowed=None):
-    while True:
-        res = input(f'{msg} (y/n{"/" if allowed else ""}{"/".join(allowed or [])})? ')
-        if res == "y":
-            return True
-        elif res == "n":
-            return False
-        elif allowed and res in allowed:
-            return res
+from .utils import get_response
 
 
 class MediaFile:
@@ -43,7 +36,7 @@ class MediaFile:
     def calculate_md5(self, md5_store):
         if self.fullname in md5_store:
             self.md5 = md5_store[self.fullname]
-            print(f"{self.md5} <<- {self.fullname}")
+            # print(f"{self.md5} <<- {self.filename}")
             return self
         if self.md5 is None:
             # improve the following line to better handle large files by reading chunks of files
@@ -53,7 +46,7 @@ class MediaFile:
                     md5.update(chunk)
             self.md5 = md5.hexdigest()
             md5_store[self.fullname] = self.md5
-            print(f"{self.md5} <- {self.fullname}")
+            # print(f"{self.md5} <- {self.filename}")
         return self
 
     def get_date(self):
@@ -72,6 +65,9 @@ class MediaFile:
                     if self.verbose:
                         print("{}: {}".format(self.fullname, e))
                     continue
+            if not self.date:
+                return "19000101_000000"
+            self.date = self.date.replace(":", "").replace(" ", "_")
         return self.date
 
     def show_exif(self, keys=None, format=None):
@@ -94,50 +90,24 @@ class MediaFile:
                 rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
             rich.print()
 
-    def intended_prefix(self):
+    def intended_prefix(self, format="%Y%m%d_%H%M%S"):
         date = self.get_date()
         if not date:
             date = os.path.split(os.path.basename(self.fullname))[0]
-        return date.replace(":", "").replace(" ", "_")
+            date = date.replace(":", "").replace(" ", "_")
+        if format == "%Y%m%d_%H%M%S":
+            return date
+        filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
+        return filedate.strftime(format)
 
-    def intended_name(self):
-        return self.intended_prefix() + self.ext.lower()
+    def intended_name(self, format="%Y%m%d_%H%M%S"):
+        return self.intended_prefix(format=format) + self.ext.lower()
 
-    def intended_path(self, root, subdir):
+    def intended_path(self, root, dir_pattern, album):
         date = self.get_date()
-        date = date.replace(":", "").replace(" ", "_")
-        year = date[:4]
-        months = {
-            "01": "Jan",
-            "02": "Feb",
-            "03": "Mar",
-            "04": "Apr",
-            "05": "May",
-            "06": "Jun",
-            "07": "Jul",
-            "08": "Aug",
-            "09": "Sep",
-            "10": "Oct",
-            "11": "Nov",
-            "12": "Dec",
-        }
-        month = months[date[4:6]]
-        if subdir:
-            return os.path.join(root, year, month, subdir)
-        else:
-            if any(
-                x in os.path.basename(self.dirname)
-                for x in (list(months.values()) + list(months.keys()))
-            ):
-                source_subdir = os.path.basename(self.dirname).split("-")[-1]
-                if (
-                    not any(source_subdir.startswith(x) for x in months.values())
-                    and not source_subdir.isdigit()
-                ):
-                    return os.path.join(root, year, month, source_subdir)
-            elif os.path.dirname(self.dirname) in (list(months.values()) + list(months.keys())):
-                return os.path.join(root, year, month, os.path.basename(self.dirname))
-            return os.path.join(root, year, month)
+        filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
+        subdir = filedate.strftime(dir_pattern)
+        return os.path.join(root, subdir, album or "")
 
     def shift_exif(
         self, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, confirmed=False
@@ -194,31 +164,18 @@ class MediaFile:
             ):
                 e.update_metadata(self.fullname, **changes)
 
-    def set_date(self, new_date):
+    def set_exif(self, values, override=False, confirmed=False):
         # add one or more 0: if the format is not YY:DD:HH:MM
-        new_date = "0:" * (4 - new_date.count(":")) + new_date
-        year, month, day, hour, minute = map(int, new_date.split(":"))
-        # Calculate the total shift in timedelta
-        new_date = datetime.datetime(year=year, month=month, day=day, hour=hour, minute=minute)
-        print(f"setting dates of {self.fullname} to new_date")
         with ExifTool() as e:
             metadata = e.get_metadata(self.fullname)
             changes = {}
-            for date_key in (
-                "QuickTime:CreateDate",
-                "QuickTime:ModifyDate",
-                "QuickTime:TrackCreateDate",
-                "QuickTime:TrackModifyDate",
-                "QuickTime:MediaCreateDate",
-                "QuickTime:MediaModifyDate",
-            ):
-                if date_key in metadata:
-                    print(f"Ignore existing {date_key} = {metadata[date_key]}")
+            for k, v in values.items():
+                if k in metadata and not override:
+                    print(f"Ignore existing {k} = {metadata[k]}")
                     continue
-                changes[k] = new_date.strftime("%Y:%m:%d %H:%M:%S")
-            for k, new_v in changes.items():
-                print(f"Add {k}\twith value {new_v}")
-            if get_response(f"Set dates of {self.fullname} as shown above"):
+                rich.print(f"Set {k} of {self.filename} to [blue]{v}[/blue]")
+                changes[k] = v
+            if confirmed or get_response(f"Set exif of {self.fullname}"):
                 e.update_metadata(self.fullname, **changes)
 
     def name_ok(self):
@@ -229,11 +186,11 @@ class MediaFile:
         # return self.fullname == os.path.join(intended_path, self.filename)
         return self.fullname.startswith(intended_path)
 
-    def rename(self):
+    def rename(self, format="%Y%m%d_%H%M%S", confirmed=False):
         # allow the name to be xxxxxx_xxxxx-someotherstuff
-        if self.filename.startswith(self.intended_prefix()):
+        if self.filename.startswith(self.intended_prefix(format=format)):
             return
-        intended_name = self.intended_name()
+        intended_name = self.intended_name(format=format)
 
         try:
             for i in range(10):
@@ -247,15 +204,17 @@ class MediaFile:
                     if os.path.samefile(self.fullname, new_file):
                         return
                     if filecmp.cmp(self.fullname, new_file, shallow=False):
-                        print(f"Rename {self.fullname} to an existing file {new_file}")
-                        os.remove(self.fullname)
+                        if confirmed or get_response(
+                            f"Rename {self.fullname} to an existing file {new_file}"
+                        ):
+                            os.remove(self.fullname)
                         # switch itself to new file
                         break
                     else:
                         continue
                 else:
-                    print(f"Rename {self.fullname} to {new_file}")
-                    os.rename(self.fullname, new_file)
+                    if confirmed or get_response(f"Rename {self.fullname} to {new_file}"):
+                        os.rename(self.fullname, new_file)
                     break
             #
             self.fullname = new_file
@@ -263,9 +222,17 @@ class MediaFile:
         except Exception as e:
             print(f"Failed to rename {self.fullname}: {e}")
 
-    def move(self, root="/Volumes/Public/MyPictures", subdir=""):
-        intended_path = self.intended_path(root, subdir)
-        if get_response("Move {} to {}".format(self.fullname, intended_path)):
+    def move(
+        self,
+        media_root="/Volumes/Public/MyPictures",
+        dir_pattern="%Y/%b",
+        album="",
+        confirmed=False,
+    ):
+        intended_path = self.intended_path(media_root, dir_pattern, album)
+        if self.fullname.startswith(intended_path):
+            return
+        if confirmed or get_response("Move {} to {}".format(self.fullname, intended_path)):
             if not os.path.isdir(intended_path):
                 os.makedirs(intended_path)
             for i in range(10):
@@ -286,8 +253,6 @@ class MediaFile:
                     else:
                         shutil.move(self.fullname, new_file)
                         return
-                    if i > 0:
-                        print(f"{self.fullname} moved to {os.path.join(intended_path, nn)}")
                 except Exception as e:
                     print(f"Failed to move {self.fullname}: {e}")
                     raise
@@ -347,7 +312,7 @@ class ExifTool(object):
             for k, v in kwargs.items()
             if k not in ("File:FileAccessDate", "File:FileInodeChangeDate")
         ]
-        print(f"excute {args} {filename}")
+        # print(f"excute {args} {filename}")
         return self.execute(*args, filename)
 
 
