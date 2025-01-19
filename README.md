@@ -370,7 +370,7 @@ For example, if you a video about your wedding that happened last year does not 
 You can set the modified date as follows:
 
 ```sh
-> hmo shift-exif wedding.mpg --date-keys File:FileModifyDate --year=-1 --month 3
+> hmo shift-exif wedding.mpg --keys File:FileModifyDate --year=-1 --month 3
 > hmo show-exif wedding.mpg --keys '*Date'
 ```
 
@@ -383,6 +383,22 @@ You can set the modified date as follows:
 ```
 
 However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
+
+## More examples
+
+### Scenario one: video files with correct filename but missing EXIF metadata
+
+```sh
+# use --without-exif to find all media file without `Date` metadata
+
+hmo list 2003 --without-exif '*Date'
+
+# use hmo to show filename and modified date, and see if they match
+hmo show-exif 2003 --without-exif '*Date' --keys File:FileName File:FileModifyDate --format text
+
+# use set-exif --from-filename to modify FileModifyDate
+hmo set-exif 2003 --without-exif '*Date' --from-filename '%Y%m%d_%H%M%S' --keys File:FileModifyDate -y
+```
 
 ## TODO
 

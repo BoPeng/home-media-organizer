@@ -177,7 +177,7 @@ def set_exif_data(args):
                 rich.print(
                     f"[red]Ignore {m.filename} with invalid date format {args.from_filename}[/red]"
                 )
-                return
+                continue
         elif args.from_date:
             try:
                 date = datetime.strptime(args.from_date, "%Y%m%d_%H%M%S")

@@ -300,7 +300,7 @@ class MediaFile:
                             # Set the new modification time
                             os.utime(self.fullname, (new_mod_time, new_mod_time))
                             rich.print(
-                                f"Modified date of [magenta]{self.filename}[/magenta] is set to [blue]{v}[/blue]"
+                                f"Set File:FileModifyDate of [magenta]{self.filename}[/magenta] to [blue]{v}[/blue]"
                             )
                         except ValueError:
                             rich.print(f"[red]Invalid date format {v}[/red]")
