@@ -32,7 +32,7 @@ This tool can
 - `set-exif`: Set EXIF metadata of media files.
 - `shift-exif`: Shift the `*Date` meta information of EXIF data by specified years, months, days, etc.
 - `dedup`: Identify duplicate files and remove extra copies.
-- `check-jpeg`: Locate and potentially remove corrupted JPEG files.
+- `validate`: Locate and potentially remove corrupted JPEG files.
 - `rename`: Rename files according to datetime information extracted.
 - `organize`: Put files under directories such as `MyLibrary/Year/Month/Vacation`.
 - `cleanup`: Clean up destination directories and remove common artifact files, such as `*.LRC` and `*.THM` files from GoPro.
@@ -169,6 +169,8 @@ hmo show-exif path/to/anotherfile --keys '*Date' --format text \
 
 Here we allow `hom set-exif` to read key=value pairs from standard input
 
+**NOTE**: Writing exif to some file types (e.g. `*.mpg`) are not supported, so the operation of changing filenames may fail on some media files.
+
 ### Shift all dates by certain dates
 
 Old pictures often have incorrect EXIF dates because you forgot to set the correct dates on your camera. The date-related EXIF information is there but could be years off from the actual date. To fix this, you can use the EXIF tool to correct it.
@@ -233,16 +235,16 @@ hmo show-exif 2020/Jul/20240422_023929.mp4 --keys '*Date'
 
 Unfortunately, due to various reasons, media files stored on CDs, DVDs, thumb drives, and even hard drives can become corrupted. These corrupted files make it difficult to navigate and can cause trouble with programs such as PLEX.
 
-HMO provides a tool called `check-jpeg` to identify and potentially remove corrupted JPEG files.
+HMO provides a tool called `validate` to identify and potentially remove corrupted JPEG or MPG files. Support for other files could be added later.
 
 ```sh
-hmo check-jpeg 2014
+hmo validate 2014
 ```
 
-If you would like to remove the corrupted files, likely after you have examined the output from the `check-jpeg` command, you can
+If you would like to remove the corrupted files, likely after you have examined the output from the `validate` command, you can
 
 ```sh
-hmo check-jpeg 2014 --remove --yes
+hmo validate 2014 --remove --yes
 ```
 
 ### Remove duplicated files

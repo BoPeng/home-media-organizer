@@ -7,13 +7,12 @@ from datetime import datetime
 from multiprocessing import Pool
 
 import rich
-from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
 from . import __version__
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
-from .utils import get_response
+from .utils import get_response, jpeg_openable, mpg_playable
 
 
 # command line tools
@@ -45,20 +44,17 @@ def rename_files(args):
             rename_file(item, args.format, args.confirmed)
 
 
-def check_jpeg(item, remove=False):
-    if not any(item.endswith(x) for x in (".jpg", ".jpeg")):
-        return
-    try:
-        i = Image.open(item)
-        i.close()
-    except UnidentifiedImageError:
+def check_media_file(item, remove=False):
+    if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
+        any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
+    ):
         rich.print(f"[red][bold]{item}[/bold] is corrupted.[/red]")
         if remove and get_response("Remove it?", ["y", "n"]) == "y":
             os.remove(item)
 
 
-def check_jpeg_files(args):
-    process_with_queue(args, lambda x, remove=args.remove: check_jpeg(x, remove=remove))
+def check_media_files(args):
+    process_with_queue(args, lambda x, remove=args.remove: check_media_file(x, remove=remove))
 
 
 def get_file_size(filename):
@@ -271,15 +267,15 @@ def app():
     # check jpeg
     #
     parser_check = subparsers.add_parser(
-        "check-jpeg",
+        "validate",
         parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Check if JPEG file is corrupted",
+        help="Check if media file is corrupted",
     )
     parser_check.add_argument(
         "--remove", action="store_true", help="If the file if it is corrupted."
     )
-    parser_check.set_defaults(func=check_jpeg_files)
+    parser_check.set_defaults(func=check_media_files)
     #
     # rename file to its canonical name
     #
@@ -379,7 +375,8 @@ def app():
         "--from-filename",
         help="""Try to extract date information from filename of
             media files. A pattern need to be specified to correctly extract
-            date information from the filename. For example, --from-file %Y%m%d_%H%M%S.jpg will assume that the files
+            date information from the filename. For example,
+            --from-filename %%Y%%m%%d_%%H%%M%%S.jpg will assume that the files
             have the standard filename,""",
     )
     parser_set_exif.add_argument(
