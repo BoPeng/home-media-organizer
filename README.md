@@ -384,12 +384,6 @@ You can set the modified date as follows:
 
 However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
 
-### More example commands
-
-```sh
-
-```
-
 ## TODO
 
 - Add tests
