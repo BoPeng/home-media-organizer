@@ -2,7 +2,6 @@
 
 import filecmp
 import fnmatch
-import hashlib
 import json
 import os
 import re
@@ -14,7 +13,7 @@ from datetime import datetime, timedelta
 import rich
 from PIL import Image, UnidentifiedImageError
 
-from .utils import get_response, calculate_file_md5
+from .utils import calculate_file_md5, get_response
 
 
 def Image_date(filename):
@@ -186,11 +185,6 @@ class MediaFile:
 
     def size(self):
         return os.path.getsize(self.fullname)
-
-    def calculate_md5(self):
-        if self.md5 is None:
-            self.md5 = calculate_file_md5
-        return self
 
     def get_date(self):
         if self.date is None:

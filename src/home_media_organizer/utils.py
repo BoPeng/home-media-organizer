@@ -1,3 +1,4 @@
+import hashlib
 import platform
 import tempfile
 from datetime import datetime
@@ -8,7 +9,6 @@ from PIL import Image, UnidentifiedImageError
 
 try:
     import ffmpeg
-import hashlib
 except ImportError:
     ffmpeg = None
 
@@ -65,6 +65,7 @@ def mpg_playable(file_path):
         # print(f"Error: {e.stderr.decode('utf-8')}")
         return False
 
+
 @mem.cache
 def calculate_file_md5(file_path):
     md5_hash = hashlib.md5()
@@ -73,6 +74,7 @@ def calculate_file_md5(file_path):
         for byte_block in iter(lambda: f.read(4096), b""):
             md5_hash.update(byte_block)
     return md5_hash.hexdigest()
+
 
 def calculate_pattern_length(pattern):
     length = 0

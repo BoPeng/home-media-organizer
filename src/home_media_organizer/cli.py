@@ -13,11 +13,12 @@ from . import __version__
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
 from .utils import (
+    calculate_file_md5,
+    clear_cache,
     extract_date_from_filename,
     get_response,
     jpeg_openable,
     mpg_playable,
-    clear_cache,
 )
 
 
@@ -80,7 +81,7 @@ def get_file_size(filename):
 
 
 def get_file_md5(filename):
-    return (filename, MediaFile(filename).calculate_md5().md5)
+    return (filename, calculate_file_md5(os.path.abspath(filename)))
 
 
 def remove_duplicated_files(args):
@@ -100,7 +101,7 @@ def remove_duplicated_files(args):
         # get md5 for files with the same size
         potential_duplicates = sum([x for x in size_files.values() if len(x) > 1], [])
         for filename, md5 in tqdm(
-            pool.starmap(get_file_md5, potential_duplicates),
+            pool.map(get_file_md5, potential_duplicates),
             desc="Checking file content",
         ):
             md5_files[md5].append(filename)
