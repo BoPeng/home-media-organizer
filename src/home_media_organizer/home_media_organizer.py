@@ -7,7 +7,7 @@ import rich
 from exiftool import ExifToolHelper
 from tqdm import tqdm
 
-from .media_file import ExifTool, date_func
+from .media_file import date_func
 
 
 def iter_files(args):
@@ -20,7 +20,9 @@ def iter_files(args):
         if args.with_exif or args.without_exif:
             with ExifToolHelper() as e:
                 metadata = {
-                    x: y for x, y in e.get_metadata(filename).items() if not x.startswith("File:")
+                    x: y
+                    for x, y in e.get_metadata(filename)[0].items()
+                    if not x.startswith("File:")
                 }
             for cond in args.without_exif or []:
                 if "=" in cond:
