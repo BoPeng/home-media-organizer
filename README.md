@@ -15,7 +15,7 @@
 
 </div>
 
-An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library
+A Swiss Army Knife tool to help fix, organize, and maintain your home media library.
 
 - GitHub repo: <https://github.com/BoPeng/home-media-organizer.git>
 - Documentation: <https://home-media-organizer.readthedocs.io>
@@ -23,32 +23,29 @@ An Swiss Army Knife kind of tool to help fix, organize, and maitain your home me
 
 ## Features
 
-I have been using a little Python script to help organize my home media collection in the
-past ten years. Over the years the script has grown longer and more complicated and I finally decided to modernize the script, make it a proper Python module, put on github
-to make it easy to maintain, and release it on PyPI so that more people can benefit from
-it.
+I have been using a small Python script to help organize my home media collection for the past ten years. Over time, the script has grown longer and more complicated, so I decided to modernize it, make it a proper Python module, put it on GitHub for easier maintenance, and release it on PyPI so that more people can benefit from it.
 
 This tool can
 
-- `list`: List media files, optionally by file types and w/wo certain exif tags.
-- `dedup`: Identify duplicated files and remove extra copies.
+- `list`: List media files, optionally by file types and with/without certain EXIF tags.
+- `show-exif`: Show all or selected EXIF metadata of one or more files.
+- `set-exif`: Set EXIF metadata of media files.
+- `shift-exif`: Shift the `*Date` meta information of EXIF data by specified years, months, days, etc.
+- `dedup`: Identify duplicate files and remove extra copies.
 - `check-jpeg`: Locate and potentially remove corrupted JPEG files.
-- `show-exif`: Show all or selected exif metadata of one or more files.
-- `shift-exif`: Shift the `*Date` meta information of exif of media files by specified year, month, day, etc.
-- `set-exif`: Set exif metadata of media files.
-- `rename`: rename files according to datetime information extracted.
+- `rename`: Rename files according to datetime information extracted.
 - `organize`: Put files under directories such as `MyLibrary/Year/Month/Vacation`.
-- `cleanup`: Clean up the destination directories and remove common artifact files, such as `*.LRC` and `*.THM` files from GoPro.
+- `cleanup`: Clean up destination directories and remove common artifact files, such as `*.LRC` and `*.THM` files from GoPro.
 
 ## Quickstart
 
-1. Install [exiftool](https://exiftool.org/install.html). This is the essential tool to read and write exif information.
+1. Install [exiftool](https://exiftool.org/install.html). This is the essential tool to read and write EXIF information.
 
-2. Install home media organizer with
+2. Install **Home Media Organizer** with
 
-```
-pip install home-media-organizer
-```
+   ```sh
+   pip install home-media-organizer
+   ```
 
 ## How to use this tool
 
@@ -56,12 +53,22 @@ pip install home-media-organizer
 
 The following is just how I would like to organize my home photos and videos. This tool can support the other methods but obviously the following layout is best supported.
 
-1. Files are organized by `YEAR/MONTH/ALBUM/YYYYMMDD_MMSSSS_OTHERINFO.EXT` where
+The following is just how I like to organize my home photos and videos. This tool can support other methods, but the following layout is best supported.
 
-- `YEAR` is the four digit year number
-- `MONTH` is usually `Jan`, `Feb` etc, but you can use other formats
-- `ALBUM` is **optional**, by default all files from the same month are in the same directory.
-- `YYYYMMDD_MMSSSS.EXT` is the default filename, which is used by many camera and camcorders, and usually matches
+1. Files are organized by `YEAR/MONTH/ALBUM/` where:
+
+   - `YEAR` is the four-digit year number.
+   - `MONTH` is usually `Jan`, `Feb`, etc., but you can use other formats.
+   - `ALBUM` is **optional**; by default, all files from the same month are in the same directory.
+
+2. Files are named by `YYYYMMDD_HHMMSS_OTHERINFO.EXT` where
+
+   - `YYYYNNDD` is year, month, day
+   - `HHMMSS` is hour, minute, second
+   - `OTHERINFO` is optional so most files should looks like `YYYYMMDD_HHMMSS.EXT`.
+
+   This is the filename format used by many cameras and camcorders, which allows you to use files dumped from cameras
+   without having to rename them. and usually matches. You can optionally add some other information to the filename.
 
 ### List all or selected media files
 
@@ -78,8 +85,7 @@ hmo list 200?
 hmo list 2000 --file-types '*.mp4'
 
 # list only files with certain exif value.
-# This tends to be slow since it will need to scan the
-# exif of all files.
+# This tends to be slow since it will need to scan the EXIF data of all files
 hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
 ```
 
@@ -92,7 +98,8 @@ hmo show-exif 2009/Dec/Denver/20091224_192936.mp4
 # output selected keys
 hmo show-exif 2009/Dec/Denver/20091224_192936.mp4 --keys QuickTime:VideoCodec
 
-# output in plain text format for easier post processing
+# output in plain text format for easier post processing, for example,
+# piping to hmo set-exif to set meta data to other files
 hmo show-exif 2009/Dec/Denver/20091224_192936.mp4 --keys QuickTime:VideoCodec --format text
 
 # wildcard is supported
@@ -117,12 +124,11 @@ The last command can have output like
 
 ### Set exif metadata to media files
 
-Some media files do not come with exif data. Perhaps they are not generated by a camera, or the photos or videos have been modified and lost their original exif information. This is usually not a big deal since you can manually put them into appropriate folder or album.
+Some media files do not come with EXIF data. Perhaps they are not generated by a camera, or the photos or videos have been modified and lost their original EXIF information. This is usually not a big deal since you can manually put them into the appropriate folder or album.
 
-However, if you are using services such as a PLEX server that ignores directory structure to organize your files, these files might be placed out side of their location in the timeline view. It is therefore useful to add exif information to these files.
+However, if you are using services such as a PLEX server that ignores directory structure to organize your files, these files might be placed outside of their location in the timeline view. It is therefore useful to add EXIF information to these files.
 
-Say we have a list of photos, in tiff format, that we bought from a studio, and would like to add EXIF dates to them. The files do not have any date information
-so we can set them by
+Say we have a list of photos, in TIFF format, that we bought from a studio, and would like to add EXIF dates to them. The files do not have any date information, so we can set them by:
 
 ```sh
 hmo set-exif 2000 --file-types tiff --from-date 20190824_203205
@@ -138,16 +144,15 @@ This operation will set
 - `QuickTime:MediaCreateDate`
 - `QuickTime:MediaModifyDate`
 
-where at least the first one [appears to be what PLEX server uses](https://exiftool.org/forum/index.php?topic=13287.0).
+where at least the first one appears to be [what PLEX server uses](https://exiftool.org/forum/index.php?topic=13287.0).
 
-Another way to get date is to obtaining them from filename. In this case
-a pattern used by [datetime.strptime](https://docs.python.org/3/library/datetime.html) needs to be specified to extract date information from filename (excluding extension). For example, if the filename is `video-2000-07-29 10:32:05.mp4`, you can use
+Another way to get the date is to obtain it from the filename. In this case, a pattern used by [datetime.strptime](https://docs.python.org/3/library/datetime.html) needs to be specified to extract date information from filename. For example, if the filename is `video-2000-07-29 10:32:05.mp4`, you can use
 
 ```
-hmo set-exif path/to/video-200-07-29 10:32:05.mp4 --from-filename 'video-%Y-%m-%d %H:%M:%S'
+hmo set-exif path/to/video-200-07-29 10:32:05.mp4 --from-filename 'video-%Y-%m-%d %H:%M:%S.mp4'
 ```
 
-Finally, you can specify meta information as a list of `KEY=VALUE` pairs directly, as in
+You can also specify meta information as a list of `KEY=VALUE` pairs directly, as in
 
 ```sh
 hmo set-exif path/to/video-200-07-29 10:32:05.mp4 \
@@ -155,7 +160,7 @@ hmo set-exif path/to/video-200-07-29 10:32:05.mp4 \
              'QuickTime:MediaModifyDate=2000-07-29 10:32:05'
 ```
 
-However, if you have metain formation from another file, you can read the meta information from a pipe, as in
+However, if you have meta information from another file, you can read the meta information from a pipe, as in:
 
 ```sh
 hmo show-exif path/to/anotherfile --keys '*Date' --format text \
@@ -166,10 +171,9 @@ Here we allow `hom set-exif` to read key=value pairs from standard input
 
 ### Shift all dates by certain dates
 
-Old pictures often have wrong exif dates because you forgot to
-set the correct dates for your camera. The date related exif information are there, but could be years before the actual date. To fix this, you can use the exif tool to correct it.
+Old pictures often have incorrect EXIF dates because you forgot to set the correct dates on your camera. The date-related EXIF information is there but could be years off from the actual date. To fix this, you can use the EXIF tool to correct it.
 
-The first step is of course to check the original exif
+The first step is to check the original EXIF data:
 
 ```sh
  hmo show-exif 2024/Apr/20240422_023929.mp4
@@ -189,50 +193,47 @@ The first step is of course to check the original exif
 }
 ```
 
-Because there are multiple dates, it is better to shift the dates instead of
-setting them. Since the event actually happened on July, 2000, so let us shift
-by
+Since there are multiple dates, it is better to shift the dates instead of setting them with command `hmo set-exif`. If the event actually happened in July 2020, you can shift the dates by:
 
 ```sh
-hmo shift-exif 2000/Jul/20240422_023929.mp4 --years=-24 --months 3 --hours=7 --minutes=10
+hmo shift-exif 2020/Jul/20240422_023929.mp4 --years=-4 --months 3 --hours=7 --minutes=10
 ```
 
 ```
-Shift File:FileModifyDate from 2024:04:21 21:39:34-05:00 to 2000:07:22 04:49:34-05:00
-Shift File:FileAccessDate from 2024:04:21 21:39:34-05:00 to 2000:07:22 04:49:34-05:00
-Shift File:FileInodeChangeDate from 2024:04:21 21:39:34-05:00 to 2000:07:22 04:49:34-05:00
-Shift QuickTime:CreateDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
-Shift QuickTime:ModifyDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
-Shift QuickTime:TrackCreateDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
-Shift QuickTime:TrackModifyDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
-Shift QuickTime:MediaCreateDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
-Shift QuickTime:MediaModifyDate from 2024:04:22 02:39:29 to 2000:07:22 09:49:29
+Shift File:FileModifyDate from 2024:04:21 21:39:34-05:00 to 2020:07:22 04:49:34-05:00
+Shift File:FileAccessDate from 2024:04:21 21:39:34-05:00 to 2020:07:22 04:49:34-05:00
+Shift File:FileInodeChangeDate from 2024:04:21 21:39:34-05:00 to 2020:07:22 04:49:34-05:00
+Shift QuickTime:CreateDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
+Shift QuickTime:ModifyDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
+Shift QuickTime:TrackCreateDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
+Shift QuickTime:TrackModifyDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
+Shift QuickTime:MediaCreateDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
+Shift QuickTime:MediaModifyDate from 2024:04:22 02:39:29 to 2020:07:22 09:49:29
 Shift dates of 20240422_023929.mp4 as shown above? (y/n/)? y
-excute ['-File:FileModifyDate=2000:07:22 04:49:34-05:00', '-QuickTime:CreateDate=2000:07:22 09:49:29', '-QuickTime:ModifyDate=2000:07:22 09:49:29', '-QuickTime:TrackCreateDate=2000:07:22 09:49:29', '-QuickTime:TrackModifyDate=2000:07:22 09:49:29', '-QuickTime:MediaCreateDate=2000:07:22 09:49:29', '-QuickTime:MediaModifyDate=2000:07:22 09:49:29'] /Volumes/Public/MyPictures/2000/Jul/20240422_023929.mp4
 ```
 
 You can confirm the change by
 
 ```
-hmo show-exif 2000/Jul/20240422_023929.mp4 --keys '*Date'
+hmo show-exif 2020/Jul/20240422_023929.mp4 --keys '*Date'
 {
-  "File:FileModifyDate": "2000:07:22 04:49:34-05:00",
-  "File:FileAccessDate": "2000:07:22 04:49:34-05:00",
-  "File:FileInodeChangeDate": "2000:07:22 04:49:34-05:00",
-  "QuickTime:CreateDate": "2000:07:22 09:49:29",
-  "QuickTime:ModifyDate": "2000:07:22 09:49:29",
-  "QuickTime:TrackCreateDate": "2000:07:22 09:49:29",
-  "QuickTime:TrackModifyDate": "2000:07:22 09:49:29",
-  "QuickTime:MediaCreateDate": "2000:07:22 09:49:29",
-  "QuickTime:MediaModifyDate": "2000:07:22 09:49:29"
+  "File:FileModifyDate": "2020:07:22 04:49:34-05:00",
+  "File:FileAccessDate": "2020:07:22 04:49:34-05:00",
+  "File:FileInodeChangeDate": "2020:07:22 04:49:34-05:00",
+  "QuickTime:CreateDate": "2020:07:22 09:49:29",
+  "QuickTime:ModifyDate": "2020:07:22 09:49:29",
+  "QuickTime:TrackCreateDate": "2020:07:22 09:49:29",
+  "QuickTime:TrackModifyDate": "2020:07:22 09:49:29",
+  "QuickTime:MediaCreateDate": "2020:07:22 09:49:29",
+  "QuickTime:MediaModifyDate": "2020:07:22 09:49:29"
 }
 ```
 
 ### Identify corrupted JPEG files
 
-Unfortunately, due to various reasons, media files stored on CD, DVD, thumbdrives, even harddrives can become corrupted. These corrupted files make it difficult to navigate, and can cause trouble with programs such as PLEX.
+Unfortunately, due to various reasons, media files stored on CDs, DVDs, thumb drives, and even hard drives can become corrupted. These corrupted files make it difficult to navigate and can cause trouble with programs such as PLEX.
 
-hmo provides a tool called `check-jpeg` to identify and potentially remove corrupted jpeg files.
+HMO provides a tool called `check-jpeg` to identify and potentially remove corrupted JPEG files.
 
 ```sh
 hmo check-jpeg 2014
@@ -246,7 +247,7 @@ hmo check-jpeg 2014 --remove --yes
 
 ### Remove duplicated files
 
-There can be multiple copies of the same file, which makes can be in different folders with different filenames. This command use file content to determine if files are identical, and if so, remove extra copies.
+There can be multiple copies of the same file, which may be in different folders with different filenames. This command uses file content to determine if files are identical, and if so, removes extra copies.
 
 The default behavior is to keep only the copy with the longest path name, likely in a specific album, and remove the "generic" copy.
 
@@ -256,9 +257,9 @@ hmo dedup 2000 --yes
 
 ## Standardize filenames
 
-It is not absolutely necessary but I would love to keep files in standardize names. The default filename in HMO is `%Y%m%d_%H%M%S.ext` , which has the format of `20000729_123929.mp4`.
+It is not absolutely necessary, but I prefer to keep files with standardized names to make it easier to sort files. The default filename in HMO is `%Y%m%d_%H%M%S.ext` , which has the format of `20000729_123929.mp4`.
 
-The `rename` command extract the date information from exif, and from origin filename if exif information does not exist, and rename the file to the standardard format.
+The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file to the standardized format.
 
 Because `%Y%m%d_%H%H%Sxxxxxx.ext` is also acceptable, it does not attempt to rename a file if the first part of the filename contains the correct date information.
 
@@ -268,7 +269,7 @@ For example
 hmo rename 2001/Apr/22BealVillage/video-2001-04-22_041817.mpg
 ```
 
-will attempt to rename to file to `20010422_041817.mpg`.
+will attempt to rename to file to `20010422_041817.mpg` (remove `video-`).
 
 If you prefer another format, you can use the `--format` option
 
@@ -286,14 +287,15 @@ Once you have obtained a list of files, with proper names, it makes sense to sen
 hmo organize new_files --dest /path/to/my/Library
 ```
 
-will move all files to folders such as `/path/to/my/Library/2010/July`.
+will move all files to folders such as `/path/to/my/Library/2010/Jul`.
 If this batch of data should be put under its own album, you can add option
 
 ```sh
 hmo organize new_files --dest /path/to/my/Library --album vacation
 ```
 
-The files will be put under `/path/to/my/Library/2010/July/vacation`
+The files will be put under `/path/to/my/Library/2010/Jul/vacation`. If you prefer another type of folder structure, you can use option such as
+`--dir-pattern '%Y-%m'` for command `hmo organize`.
 
 ### Clean up library
 
@@ -314,6 +316,24 @@ To check the file types that will be removed, run
 ```
 hmo cleanup -h
 ```
+
+## How to get help
+
+The help message is the authoritative source of information regarding Home Media Organizer
+
+```sh
+hmo --help
+hmo rename -h
+```
+
+If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
+
+## TODO
+
+- Add tests
+- Improve data detection from media files to handle more types of medias.
+- Add a `--copy` mode to make sure that the source files will not be changed or moved during `hmo rename` or `hme organize`.
+- Support for music and movies?
 
 ## Credits
 
