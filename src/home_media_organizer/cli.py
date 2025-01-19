@@ -1,16 +1,18 @@
-"""Console script for home-media-organizer."""
+import argparse
+import json
+import os
+import sys
+from collections import defaultdict
+from datetime import datetime
+from multiprocessing import Pool
+
+import rich
+from PIL import Image, UnidentifiedImageError
+from tqdm import tqdm
 
 from . import __version__
-from .home_media_organizer import *
+from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
-import argparse
-import sys
-from datetime import datetime
-from PIL import Image, UnidentifiedImageError
-import rich
-from collections import defaultdict
-
-
 from .utils import get_response
 
 
@@ -176,7 +178,7 @@ def set_exif_date(args):
 
 def cleanup(args):
     for item in args.items:
-        for root, dirs, files in os.walk(item):
+        for root, _, files in os.walk(item):
             for f in files:
                 if any(fnmatch.fnmatch(f, x) for x in args.file_types):
                     if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):

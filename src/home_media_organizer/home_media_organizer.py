@@ -1,15 +1,10 @@
-"""Main module."""
-
-import threading
-
 import fnmatch
-import json
 import os
 import threading
-from multiprocessing import Pool
 from queue import Queue
 
 from tqdm import tqdm
+
 from .media_file import ExifTool, date_func
 
 
@@ -32,7 +27,6 @@ class Worker(threading.Thread):
 def iter_files(args):
     # if file is selected based on args.matches,, args.with_exif, args.without_exif
     def is_selected(filename):
-        global date_func
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
         if os.path.splitext(filename)[-1] not in date_func:
@@ -58,7 +52,7 @@ def iter_files(args):
         else:
             if not os.path.isdir(item):
                 raise RuntimeError(f"{item} is not a filename or directory")
-            for root, dirs, files in os.walk(item):
+            for root, _, files in os.walk(item):
                 for f in files:
                     if is_selected(os.path.join(root, f)):
                         yield os.path.join(root, f)
