@@ -11,64 +11,83 @@ from .media_file import date_func
 
 
 def iter_files(args):
-    # if file is selected based on args.matches,, args.with_exif, args.without_exif
-    def is_selected(filename):
+    def allowed_filetype(filename):
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
         if os.path.splitext(filename)[-1] not in date_func:
             return False
-        if args.with_exif or args.without_exif:
-            with ExifToolHelper() as e:
-                metadata = {
-                    x: y
-                    for x, y in e.get_metadata(filename)[0].items()
-                    if not x.startswith("File:")
-                }
-            for cond in args.without_exif or []:
-                if "=" in cond:
-                    k, v = cond.split("=")
-                    if "*" in k:
-                        raise ValueError(
-                            f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
-                        )
-                    if k in metadata and metadata[k] == v:
-                        return False
-                elif "*" in cond:
-                    if any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
-                        return False
-                else:
-                    if cond in metadata:
-                        return False
-            match = True
-            for cond in args.with_exif or []:
-                if "=" in cond:
-                    k, v = cond.split("=")
-                    if "*" in k:
-                        raise ValueError(
-                            f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
-                        )
-                    if k not in metadata or metadata[k] != v:
-                        match = False
-                elif "*" in cond:
-                    if not any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
-                        match = False
-                else:
-                    if cond not in metadata:
-                        match = False
-            return match
         return True
 
+    # if file is selected based on args.matches,, args.with_exif, args.without_exif
+    def allowed_metadata(metadata):
+        for cond in args.without_exif or []:
+            if "=" in cond:
+                k, v = cond.split("=")
+                if "*" in k:
+                    raise ValueError(
+                        f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
+                    )
+                if k in metadata and metadata[k] == v:
+                    return False
+            elif "*" in cond:
+                if any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
+                    return False
+            else:
+                if cond in metadata:
+                    return False
+        match = True
+        for cond in args.with_exif or []:
+            if "=" in cond:
+                k, v = cond.split("=")
+                if "*" in k:
+                    raise ValueError(
+                        f"Invalid condition {cond}: '*' is not allowed when key=value is specified."
+                    )
+                if k not in metadata or metadata[k] != v:
+                    match = False
+            elif "*" in cond:
+                if not any(fnmatch.fnmatch(x, cond) for x in metadata.keys()):
+                    match = False
+            else:
+                if cond not in metadata:
+                    match = False
+        return match
+
     for item in args.items:
-        if os.path.isfile(item) and is_selected(item):
+        if os.path.isfile(item):
+            if not allowed_filetype(item):
+                continue
+            if args.with_exif or args.without_exif:
+                with ExifToolHelper() as e:
+                    metadata = {
+                        x: y
+                        for x, y in e.get_metadata(os.path.abspath(item))[0].items()
+                        if not x.startswith("File:")
+                    }
+                if not allowed_metadata(metadata):
+                    continue
             yield item
         else:
             if not os.path.isdir(item):
                 rich.print(f"[red]{item} is not a filename or directory[/red]")
                 continue
             for root, _, files in os.walk(item):
-                for f in files:
-                    if is_selected(os.path.join(root, f)):
-                        yield os.path.join(root, f)
+                if args.with_exif or args.without_exif:
+                    # get exif atll at the same time
+                    qualified_files = [os.path.join(root, f) for f in files if allowed_filetype(f)]
+                    if not qualified_files:
+                        continue
+                    with ExifToolHelper() as e:
+                        all_metadata = e.get_metadata(files=qualified_files)
+                        for qualified_file, metadata in zip(qualified_files, all_metadata):
+                            if allowed_metadata(
+                                {x: y for x, y in metadata.items() if not x.startswith("File:")}
+                            ):
+                                yield qualified_file
+                else:
+                    for f in files:
+                        if allowed_filetype(f):
+                            yield os.path.join(root, f)
 
 
 class Worker(threading.Thread):

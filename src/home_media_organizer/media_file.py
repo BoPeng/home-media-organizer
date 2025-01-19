@@ -207,7 +207,7 @@ class MediaFile:
         hours=0,
         minutes=0,
         seconds=0,
-        date_keys=None,
+        keys=None,
         confirmed=False,
     ):  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
@@ -219,7 +219,7 @@ class MediaFile:
             metadata = e.get_metadata(self.fullname)[0]
             changes = {}
             for k, v in metadata.items():
-                if not k.endswith("Date") or (date_keys and k not in date_keys):
+                if not k.endswith("Date") or (keys and k not in keys):
                     continue
                 # print(f'{k}: {v}')
                 if "-" in v:

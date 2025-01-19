@@ -148,7 +148,7 @@ def shift_exif_date(args):
             hours=args.hours,
             minutes=args.minutes,
             seconds=args.seconds,
-            date_keys=args.date_keys,
+            keys=args.keys,
             confirmed=args.confirmed,
         )
 
@@ -170,21 +170,21 @@ def set_exif_data(args):
         if args.from_filename:
             try:
                 date = extract_date_from_filename(os.path.basename(m.filename), args.from_filename)
-                for k in args.date_keys:
+                for k in args.keys:
                     values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
 
             except ValueError:
                 rich.print(
-                    f"[red]Invalid date format {args.from_filename} for filename {m.filename}[/red]"
+                    f"[red]Ignore {m.filename} with invalid date format {args.from_filename}[/red]"
                 )
-                sys.exit(1)
+                return
         elif args.from_date:
             try:
                 date = datetime.strptime(args.from_date, "%Y%m%d_%H%M%S")
             except ValueError:
                 rich.print(f"[red]Invalid date format {args.from_date}[/red]")
                 sys.exit(1)
-            for k in args.date_keys:
+            for k in args.keys:
                 values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
         #
         if values:
@@ -388,7 +388,7 @@ def app():
     parser_shift.add_argument("--minutes", default=0, type=int, help="Number of minutes to shift")
     parser_shift.add_argument("--seconds", default=0, type=int, help="Number of seconds to shift")
     parser_shift.add_argument(
-        "--date-keys",
+        "--keys",
         nargs="+",
         help="""A list of date keys that will be set. All keys ending with `Date`
          will be changed if left unspecified. """,
@@ -428,7 +428,7 @@ def app():
         to set the date information of all files.""",
     )
     parser_set_exif.add_argument(
-        "--date-keys",
+        "--keys",
         nargs="+",
         default=[
             "EXIF:DateTimeOriginal",
