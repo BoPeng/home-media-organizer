@@ -107,16 +107,23 @@ def remove_duplicated_files(args):
             md5_files[md5].append(filename)
 
     #
+    duplicated_cnt = 0
+    removed_cnt = 0
     for md5, files in md5_files.items():
         if len(files) == 1:
             continue
         # print(f"Found {len(files)} files with md5 {md5}")
         # keep the one with the deepest path name
+        duplicated_cnt += len(files) - 1
         sorted_files = sorted(files, key=len)
         for filename in sorted_files[:-1]:
             rich.print(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
             if args.confirmed or get_response("Remove it?"):
                 os.remove(filename)
+                removed_cnt += 1
+    rich.print(
+        f"[blue]{removed_cnt}[/blue] out of [blue]{duplicated_cnt}[/blue] duplicated files are removed."
+    )
 
 
 def organize_files(args):
