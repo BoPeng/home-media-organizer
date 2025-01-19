@@ -1,5 +1,6 @@
 import fnmatch
 import os
+import rich
 import threading
 from queue import Queue
 
@@ -35,7 +36,8 @@ def iter_files(args):
             yield item
         else:
             if not os.path.isdir(item):
-                raise RuntimeError(f"{item} is not a filename or directory")
+                rich.print(f"[red]{item} is not a filename or directory[/red]")
+                continue
             for root, _, files in os.walk(item):
                 for f in files:
                     if is_selected(os.path.join(root, f)):
