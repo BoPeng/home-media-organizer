@@ -251,7 +251,7 @@ def app():
     )
     parser_list.set_defaults(func=list_files)
     #
-    # show exif of files
+    # show EXIF of files
     #
     parser_show = subparsers.add_parser(
         "show-exif",
@@ -287,7 +287,7 @@ def app():
         "rename",
         parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Rename files to their intended name, according to exif or other information.",
+        help="Rename files to their intended name, according to EXIF or other information.",
     )
     parser_rename.add_argument(
         "--format",
@@ -330,13 +330,13 @@ def app():
     )
     parser_organize.set_defaults(func=organize_files)
     #
-    # shift date of exif
+    # shift date of EXIF
     #
     parser_shift = subparsers.add_parser(
         "shift-exif",
         parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="YY:MM:DD:HH:MM to shift the exif dates.",
+        help="Shift the date related metadata in EXIF.",
     )
     parser_shift.add_argument(
         "--years",
@@ -357,7 +357,7 @@ def app():
     parser_shift.add_argument("--seconds", default=0, type=int, help="Number of seconds to shift")
     parser_shift.set_defaults(func=shift_exif_date)
     #
-    # set dates of exif
+    # set dates of EXIF
     #
     parser_set_exif = subparsers.add_parser(
         "set-exif",
