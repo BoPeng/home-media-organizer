@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
+from typing import List, Optional
 
 import rich
 from tqdm import tqdm
@@ -23,24 +24,24 @@ from .utils import (
 
 # command line tools
 #
-def list_files(args):
+def list_files(args: argparse.Namespace):
     """List all or selected media files."""
     for item in iter_files(args):
         print(item)
 
 
-def show_exif(args):
+def show_exif(args: argparse.Namespace):
     for item in iter_files(args):
         m = MediaFile(item)
         m.show_exif(args.keys, args.format)
 
 
-def rename_file(item, format, confirm):
+def rename_file(item: str, format: str, confirmed: bool):
     m = MediaFile(item)
-    m.rename(format=format, confirmed=confirm)
+    m.rename(format=format, confirmed=confirmed)
 
 
-def rename_files(args):
+def rename_files(args: argparse.Namespace):
     if args.confirmed:
         process_with_queue(args, lambda x, format=args.format: rename_file(x, format, True))
     else:
@@ -49,7 +50,7 @@ def rename_files(args):
             rename_file(item, args.format, args.confirmed)
 
 
-def check_media_file(item, remove=False, confirmed=False):
+def check_media_file(item: str, remove: bool = False, confirmed: bool = False):
     if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
@@ -59,7 +60,7 @@ def check_media_file(item, remove=False, confirmed=False):
             os.remove(item)
 
 
-def validate_media_files(args):
+def validate_media_files(args: argparse.Namespace):
     if args.no_cache:
         clear_cache()
     if args.confirmed or not args.remove:
@@ -74,15 +75,15 @@ def validate_media_files(args):
             check_media_file(item, remove=args.remove, confirmed=args.confirmed)
 
 
-def get_file_size(filename):
+def get_file_size(filename: str):
     return (filename, os.path.getsize(filename))
 
 
-def get_file_md5(filename):
+def get_file_md5(filename: str):
     return (filename, calculate_file_md5(os.path.abspath(filename)))
 
 
-def remove_duplicated_files(args):
+def remove_duplicated_files(args: argparse.Namespace):
     if args.no_cache:
         clear_cache()
 
@@ -124,7 +125,7 @@ def remove_duplicated_files(args):
     )
 
 
-def organize_files(args):
+def organize_files(args: argparse.Namespace):
     for item in iter_files(args):
         m = MediaFile(item)
         m.move(
@@ -135,7 +136,7 @@ def organize_files(args):
         )
 
 
-def shift_exif_date(args):
+def shift_exif_date(args: argparse.Namespace):
     for item in iter_files(args):
         m = MediaFile(item)
         m.shift_exif(
@@ -151,7 +152,7 @@ def shift_exif_date(args):
         )
 
 
-def set_exif_data(args):
+def set_exif_data(args: argparse.Namespace):
     for item in iter_files(args):
         m = MediaFile(item)
         values = {}
@@ -189,7 +190,7 @@ def set_exif_data(args):
             m.set_exif(values, args.overwrite, args.confirmed)
 
 
-def cleanup(args):
+def cleanup(args: argparse.Namespace):
     for item in args.items:
         for root, _, files in os.walk(item):
             for f in files:
@@ -247,7 +248,7 @@ def get_common_args_parser():
     return parser
 
 
-def parse_args(arg_list):
+def parse_args(arg_list: Optional[List[str]]):
     parser = argparse.ArgumentParser(
         description="""An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library""",
         epilog="""See documentation at https://github.com/BoPeng/home-media-organizer/""",
@@ -480,7 +481,7 @@ def parse_args(arg_list):
     return parser.parse_args(arg_list)
 
 
-def app(arg_list=None):
+def app(arg_list: Optional[List[str]] = None):
     args = parse_args(arg_list)
     args.func(args)
 

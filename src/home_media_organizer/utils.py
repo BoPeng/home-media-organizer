@@ -2,6 +2,7 @@ import hashlib
 import platform
 import tempfile
 from datetime import datetime
+from typing import List, Optional
 
 import joblib
 import rich
@@ -20,7 +21,7 @@ def clear_cache():
     mem.clear()
 
 
-def get_response(msg, allowed=None):
+def get_response(msg: str, allowed: Optional[List[str]] = None):
     while True:
         res = input(f'{msg} (y/n{"/" if allowed else ""}{"/".join(allowed or [])})? ')
         if res == "y":
@@ -33,7 +34,7 @@ def get_response(msg, allowed=None):
 
 
 @mem.cache
-def jpeg_openable(file_path):
+def jpeg_openable(file_path: str):
     try:
         with Image.open(file_path) as img:
             img.verify()  # verify that it is, in fact an image
@@ -47,7 +48,7 @@ def jpeg_openable(file_path):
 
 
 @mem.cache
-def mpg_playable(file_path):
+def mpg_playable(file_path: str):
     if not ffmpeg:
         rich.print("[red]ffmpeg not installed, skip[/red]")
         return True
@@ -67,7 +68,7 @@ def mpg_playable(file_path):
 
 
 @mem.cache
-def calculate_file_md5(file_path):
+def calculate_file_md5(file_path: str):
     md5_hash = hashlib.md5()
     with open(file_path, "rb") as f:
         # Read and update hash in chunks of 4K
@@ -76,7 +77,7 @@ def calculate_file_md5(file_path):
     return md5_hash.hexdigest()
 
 
-def calculate_pattern_length(pattern):
+def calculate_pattern_length(pattern: str):
     length = 0
     i = 0
     while i < len(pattern):
@@ -92,7 +93,7 @@ def calculate_pattern_length(pattern):
     return length
 
 
-def extract_date_from_filename(date_str, pattern):
+def extract_date_from_filename(date_str: str, pattern: str):
     # Calculate the length of the date string based on the pattern
     date_length = calculate_pattern_length(pattern)
     # Extract the date part from the filename

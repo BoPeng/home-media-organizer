@@ -1,7 +1,10 @@
+import argparse
 import fnmatch
 import os
 import threading
 from queue import Queue
+from typing import Any, Callable, Dict
+from typing import Queue as TypingQueue
 
 import rich
 from exiftool import ExifToolHelper
@@ -10,8 +13,8 @@ from tqdm import tqdm
 from .media_file import date_func
 
 
-def iter_files(args):
-    def allowed_filetype(filename):
+def iter_files(args: argparse.Namespace):
+    def allowed_filetype(filename: str):
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
         if os.path.splitext(filename)[-1] not in date_func:
@@ -19,7 +22,7 @@ def iter_files(args):
         return True
 
     # if file is selected based on args.matches,, args.with_exif, args.without_exif
-    def allowed_metadata(metadata):
+    def allowed_metadata(metadata: Dict):
         for cond in args.without_exif or []:
             if "=" in cond:
                 k, v = cond.split("=")
@@ -91,13 +94,13 @@ def iter_files(args):
 
 
 class Worker(threading.Thread):
-    def __init__(self, queue, task):
+    def __init__(self: "Worker", queue: TypingQueue[Any], task: Callable):
         threading.Thread.__init__(self)
         self.queue = queue
         self.task = task
         self.daemon = True
 
-    def run(self):
+    def run(self: "Worker"):
         while True:
             item = self.queue.get()
             if item is None:
@@ -106,7 +109,7 @@ class Worker(threading.Thread):
             self.queue.task_done()
 
 
-def process_with_queue(args, func):
+def process_with_queue(args: argparse.Namespace, func: Callable):
     q = Queue()
     # Create worker threads
     num_workers = args.jobs or 10

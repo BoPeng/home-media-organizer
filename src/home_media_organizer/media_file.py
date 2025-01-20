@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta
+from typing import List, Optional
 
 import rich
 from exiftool import ExifToolHelper
@@ -14,7 +15,7 @@ from PIL import Image, UnidentifiedImageError
 from .utils import get_response
 
 
-def Image_date(filename):
+def Image_date(filename: str):
     try:
         i = Image.open(filename)
         date = str(i._getexif()[36867])
@@ -24,7 +25,7 @@ def Image_date(filename):
         return None
 
 
-def exiftool_date(filename):
+def exiftool_date(filename: str):
     with ExifToolHelper() as e:
         metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
@@ -38,7 +39,7 @@ def exiftool_date(filename):
         return None
 
 
-def filename_date(filename):
+def filename_date(filename: str):
     ext = os.path.splitext(filename)[-1]
     if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, os.path.basename(filename)):
         fn, ext = os.path.splitext(os.path.basename(filename))
@@ -125,7 +126,7 @@ date_func.update({x.upper(): y for x, y in date_func.items()})
 
 class MediaFile:
 
-    def __init__(self, filename, verbose=True):
+    def __init__(self: "MediaFile", filename: str, verbose: bool = True):
         self.fullname = os.path.abspath(filename)
         self.dirname, self.filename = os.path.split(self.fullname)
         self.ext = os.path.splitext(self.filename)[-1]
@@ -133,10 +134,10 @@ class MediaFile:
         self.date = None
         self.md5 = None
 
-    def size(self):
+    def size(self: "MediaFile"):
         return os.path.getsize(self.fullname)
 
-    def get_date(self):
+    def get_date(self: "MediaFile"):
         if self.date is None:
             funcs = date_func[self.ext]
             for func in funcs:
@@ -156,7 +157,7 @@ class MediaFile:
             self.date = self.date.replace(":", "").replace(" ", "_")
         return self.date
 
-    def show_exif(self, keys=None, format=None):
+    def show_exif(self: "MediaFile", keys: List[str] | None = None, format: str | None = None):
         with ExifToolHelper() as e:
             metadata = e.get_metadata(self.fullname)[0]
             if keys is not None:
@@ -176,7 +177,7 @@ class MediaFile:
                 rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
             rich.print()
 
-    def intended_prefix(self, format="%Y%m%d_%H%M%S"):
+    def intended_prefix(self: "MediaFile", format: str = "%Y%m%d_%H%M%S"):
         date = self.get_date()
         if not date:
             date = os.path.split(os.path.basename(self.fullname))[0]
@@ -186,26 +187,26 @@ class MediaFile:
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
         return filedate.strftime(format)
 
-    def intended_name(self, format="%Y%m%d_%H%M%S"):
+    def intended_name(self: "MediaFile", format: str = "%Y%m%d_%H%M%S"):
         return self.intended_prefix(format=format) + self.ext.lower()
 
-    def intended_path(self, root, dir_pattern, album):
+    def intended_path(self: "MediaFile", root: str, dir_pattern: str, album: str):
         date = self.get_date()
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
         subdir = filedate.strftime(dir_pattern)
         return os.path.join(root, subdir, album or "")
 
     def shift_exif(
-        self,
-        years=0,
-        months=0,
-        weeks=0,
-        days=0,
-        hours=0,
-        minutes=0,
-        seconds=0,
-        keys=None,
-        confirmed=False,
+        self: "MediaFile",
+        years: int = 0,
+        months: int = 0,
+        weeks: int = 0,
+        days: int = 0,
+        hours: int = 0,
+        minutes: int = 0,
+        seconds: int = 0,
+        keys: Optional[List[str]] = None,
+        confirmed: bool = False,
     ):  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
         # Calculate the total shift in timedelta
@@ -277,7 +278,9 @@ class MediaFile:
             ):
                 e.set_tags([self.fullname], tags=changes)
 
-    def set_exif(self, values, override=False, confirmed=False):
+    def set_exif(
+        self: "MediaFile", values: List[str], override: bool = False, confirmed: bool = False
+    ):
         # add one or more 0: if the format is not YY:DD:HH:MM
         with ExifToolHelper() as e:
             metadata = e.get_metadata(self.fullname)[0]
@@ -312,15 +315,15 @@ class MediaFile:
                 rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.set_tags([self.fullname], tags=changes)
 
-    def name_ok(self):
+    def name_ok(self: "MediaFile"):
         return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)
 
-    def path_ok(self, root, subdir=""):
+    def path_ok(self: "MediaFile", root: str, subdir: str = ""):
         intended_path = self.intended_path(root, subdir)
         # return self.fullname == os.path.join(intended_path, self.filename)
         return self.fullname.startswith(intended_path)
 
-    def rename(self, format="%Y%m%d_%H%M%S", confirmed=False):
+    def rename(self: "MediaFile", format: str = "%Y%m%d_%H%M%S", confirmed: bool = False):
         # allow the name to be xxxxxx_xxxxx-someotherstuff
         if self.filename.startswith(self.intended_prefix(format=format)):
             return
@@ -355,11 +358,11 @@ class MediaFile:
             print(f"Failed to rename {self.fullname}: {e}")
 
     def move(
-        self,
-        media_root="/Volumes/Public/MyPictures",
-        dir_pattern="%Y/%b",
-        album="",
-        confirmed=False,
+        self: "MediaFile",
+        media_root: str = "/Volumes/Public/MyPictures",
+        dir_pattern: str = "%Y/%b",
+        album: str = "",
+        confirmed: bool = False,
     ):
         intended_path = self.intended_path(media_root, dir_pattern, album)
         if self.fullname.startswith(intended_path):

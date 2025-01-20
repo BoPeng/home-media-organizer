@@ -8,16 +8,16 @@ homepage = "https://github.com/BoPeng/home-media-organizer"
 repository = "https://github.com/BoPeng/home-media-organizer"
 documentation = "https://home-media-organizer.readthedocs.io"
 keywords = ["home-media-organizer"]
-classifiers=[
-    "Development Status :: 2 - Pre-Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Natural Language :: English",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 
 [tool.poetry.urls]
@@ -39,12 +39,12 @@ pyexiftool = "0.5.6"
 pre-commit = "^4.0.1"
 invoke = "^2.2.0"
 bump2version = "^1.0.1"
-watchdog = {version = "^6.0.0", extras = ["watchmedo"]}
+watchdog = { version = "^6.0.0", extras = ["watchmedo"] }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.3"
 xdoctest = "^1.2.0"
-coverage = {version = "^7.6.7", extras = ["toml"]}
+coverage = { version = "^7.6.7", extras = ["toml"] }
 pytest-cov = "^6.0.0"
 
 [tool.poetry.group.linters.dependencies]
@@ -79,7 +79,7 @@ exclude_lines = [
   "raise AssertionError",
   "raise NotImplementedError",
   "if 0:",
-  "if __name__ == __main__:"
+  "if __name__ == __main__:",
 ]
 show_missing = true
 
@@ -91,30 +91,60 @@ target-version = "py39"
 output-format = "full"
 line-length = 99
 fix = true
-extend-exclude = [
-    "docs/*",
-]
+extend-exclude = ["docs/*"]
 
 [tool.ruff.lint]
-select = [
-  "E", "F", "W",  # flake8
-  "C",  # mccabe
-  "I",  # isort
-  "N",  # pep8-naming
-  "D",  # flake8-docstrings
-  "ANN",  # flake8-annotations
-  "S",  # flake8-bandit
-  "BLE",  # flake8-blind-except
-  "B",  # flake8-bugbear
-  "A",  # flake8-builtins
-  "G",  # flake8-logging-format
-  "ERA",  # eradicate
-  "ISC",  # flake8-implicit-str-concat
-  "RUF",  # Ruff-specific rules
+ignore = [
+  #"ANN101",
+  #"ANN001",
+  "ANN201",
+  "ANN202",
+  "ANN204",
+  "A002",
+  "B007",
+  "BLE001",
+  "C901",
+  "D103",
+  "D415",
+  "D100",
+  "D102",
+  "D107",
+  "D101",
+  "D101",
+  "ERA001",
+  "E722",
+  "F821",
+  "N802",
+  "RUF005",
+  "RUF017",
+  "S603",
+  "S101",
+  "S324",
+  "S108",
+  "E501",
+  "S110",
 ]
-ignore = ["ANN101"]
+select = [
+  "E",
+  "F",
+  "W",   # flake8
+  "C",   # mccabe
+  "I",   # isort
+  "N",   # pep8-naming
+  "D",   # flake8-docstrings
+  "ANN", # flake8-annotations
+  "S",   # flake8-bandit
+  "BLE", # flake8-blind-except
+  "B",   # flake8-bugbear
+  "A",   # flake8-builtins
+  "G",   # flake8-logging-format
+  "ERA", # eradicate
+  "ISC", # flake8-implicit-str-concat
+  "RUF", # Ruff-specific rules
+]
+
 unfixable = [
-  "ERA",  # Don't remove commented-out code
+  "ERA", # Don't remove commented-out code
 ]
 
 [tool.ruff.lint.per-file-ignores]

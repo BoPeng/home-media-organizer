@@ -2,7 +2,7 @@
 
 import shlex
 import subprocess
-from typing import List
+from typing import Dict, List
 
 import pytest
 
@@ -35,7 +35,7 @@ def test_main_app(options: List[str], expected: str) -> None:
         ("list file1 file2", {"items": ["file1", "file2"]}),
     ],
 )
-def test_parse_args(command, options):
+def test_parse_args(command: str, options: Dict):
     args = cli.parse_args(shlex.split(command))
 
     # combine test into in one assert
