@@ -98,20 +98,16 @@ ignore = [
   "BLE001", # blank exception
   "C901",   # too complex (function name too long etc)
   # docstring etc
-  "D103",
-  "D415",
   "D100",
+  "D101",
   "D102",
+  "D103",
   "D107",
-  "D101",
-  "D101",
-  #"S603",
-  #"S101",
-  #"S324",
-  #"S108",
+  "D415",
+  "S108", # use of /tmp
+  "S603", # subprocess.run security
   "S607", # subprocess.run with relative path
-  "E501",
-  "S110",
+  "E501", # line too long
 ]
 select = [
   "E",

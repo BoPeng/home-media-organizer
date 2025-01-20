@@ -63,13 +63,13 @@ def mpg_playable(file_path: str) -> bool:
 
 
 @mem.cache
-def calculate_file_md5(file_path: str) -> str:
-    md5_hash = hashlib.md5()
+def calculate_file_hash(file_path: str) -> str:
+    sha_hash = hashlib.sha256()
     with open(file_path, "rb") as f:
         # Read and update hash in chunks of 4K
         for byte_block in iter(lambda: f.read(4096), b""):
-            md5_hash.update(byte_block)
-    return md5_hash.hexdigest()
+            sha_hash.update(byte_block)
+    return sha_hash.hexdigest()
 
 
 def calculate_pattern_length(pattern: str) -> int:

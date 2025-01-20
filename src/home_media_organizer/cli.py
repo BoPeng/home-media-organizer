@@ -14,7 +14,7 @@ from . import __version__
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
 from .utils import (
-    calculate_file_md5,
+    calculate_file_hash,
     clear_cache,
     extract_date_from_filename,
     get_response,
@@ -83,7 +83,7 @@ def get_file_size(filename: str) -> int:
 
 
 def get_file_md5(filename: str) -> str:
-    return (filename, calculate_file_md5(os.path.abspath(filename)))
+    return (filename, calculate_file_hash(os.path.abspath(filename)))
 
 
 def remove_duplicated_files(args: argparse.Namespace) -> None:
