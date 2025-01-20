@@ -109,6 +109,7 @@ ignore = [
   "S603",   # subprocess.run security
   "S607",   # subprocess.run with relative path
   "E501",   # line too long
+  "S112",   # logging try/except/continue
 ]
 select = [
   "E",
