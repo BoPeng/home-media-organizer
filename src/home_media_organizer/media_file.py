@@ -6,7 +6,7 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import rich
 from exiftool import ExifToolHelper  # type: ignore
@@ -171,7 +171,7 @@ class MediaFile:
                     if not self.date.startswith("2"):
                         raise ValueError(f"Invalid date {self.date}")
                     break
-                except Exception as e:
+                except Exception:
                     continue
             if not self.date:
                 return "19000101_000000"

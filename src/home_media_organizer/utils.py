@@ -2,7 +2,6 @@ import hashlib
 import platform
 import tempfile
 from datetime import datetime
-from typing import List, Optional
 
 import joblib  # type: ignore
 import rich

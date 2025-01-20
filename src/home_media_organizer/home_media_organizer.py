@@ -9,7 +9,6 @@ import rich
 from exiftool import ExifToolHelper  # type: ignore
 from tqdm import tqdm  # type: ignore
 
-
 from .media_file import date_func
 
 
