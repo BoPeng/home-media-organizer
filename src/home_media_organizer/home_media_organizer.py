@@ -4,7 +4,6 @@ import os
 import threading
 from queue import Queue
 from typing import Any, Callable, Dict, Generator
-from typing import Queue as TypingQueue
 
 import rich
 from exiftool import ExifToolHelper
@@ -13,7 +12,7 @@ from tqdm import tqdm
 from .media_file import date_func
 
 
-def iter_files(args: argparse.Namespace) -> Generator[str]:
+def iter_files(args: argparse.Namespace) -> Generator[str, None, None]:
     def allowed_filetype(filename: str) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
@@ -94,7 +93,7 @@ def iter_files(args: argparse.Namespace) -> Generator[str]:
 
 
 class Worker(threading.Thread):
-    def __init__(self: "Worker", queue: TypingQueue[Any], task: Callable) -> None:
+    def __init__(self: "Worker", queue: Queue[Any], task: Callable) -> None:
         threading.Thread.__init__(self)
         self.queue = queue
         self.task = task
