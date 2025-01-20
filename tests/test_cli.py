@@ -13,8 +13,6 @@ from home_media_organizer import cli
 @pytest.mark.parametrize(
     "options,expected",
     [
-        # this will generate an error
-        # ([], "usage: "),
         (["--help"], "usage: "),
         (
             ["--version"],
@@ -24,7 +22,7 @@ from home_media_organizer import cli
 )
 def test_main_app(options: List[str], expected: str) -> None:
     """Test app"""
-    result = subprocess.run(["hmo"] + options, capture_output=True, text=True)
+    result = subprocess.run(["hmo", *options], capture_output=True, text=True)
     assert result.returncode == 0
     assert expected in result.stdout
 
@@ -35,7 +33,7 @@ def test_main_app(options: List[str], expected: str) -> None:
         ("list file1 file2", {"items": ["file1", "file2"]}),
     ],
 )
-def test_parse_args(command: str, options: Dict):
+def test_parse_args(command: str, options: Dict) -> None:
     args = cli.parse_args(shlex.split(command))
 
     # combine test into in one assert

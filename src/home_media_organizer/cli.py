@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import os
 import sys
 from collections import defaultdict
@@ -24,33 +25,35 @@ from .utils import (
 
 # command line tools
 #
-def list_files(args: argparse.Namespace):
+def list_files(args: argparse.Namespace) -> None:
     """List all or selected media files."""
     for item in iter_files(args):
         print(item)
 
 
-def show_exif(args: argparse.Namespace):
+def show_exif(args: argparse.Namespace) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
-        m.show_exif(args.keys, args.format)
+        m.show_exif(args.keys, output_format=args.format)
 
 
-def rename_file(item: str, format: str, confirmed: bool):
+def rename_file(item: str, filename_format: str, confirmed: bool) -> None:
     m = MediaFile(item)
-    m.rename(format=format, confirmed=confirmed)
+    m.rename(filename_format=filename_format, confirmed=confirmed)
 
 
-def rename_files(args: argparse.Namespace):
+def rename_files(args: argparse.Namespace) -> None:
     if args.confirmed:
-        process_with_queue(args, lambda x, format=args.format: rename_file(x, format, True))
+        process_with_queue(
+            args, lambda x, filename_format=args.format: rename_file(x, format, True)
+        )
     else:
         for item in iter_files(args):
             rich.print(f"Processing [blue]{item}[/blue]")
             rename_file(item, args.format, args.confirmed)
 
 
-def check_media_file(item: str, remove: bool = False, confirmed: bool = False):
+def check_media_file(item: str, remove: bool = False, confirmed: bool = False) -> None:
     if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
@@ -60,7 +63,7 @@ def check_media_file(item: str, remove: bool = False, confirmed: bool = False):
             os.remove(item)
 
 
-def validate_media_files(args: argparse.Namespace):
+def validate_media_files(args: argparse.Namespace) -> None:
     if args.no_cache:
         clear_cache()
     if args.confirmed or not args.remove:
@@ -75,15 +78,15 @@ def validate_media_files(args: argparse.Namespace):
             check_media_file(item, remove=args.remove, confirmed=args.confirmed)
 
 
-def get_file_size(filename: str):
+def get_file_size(filename: str) -> int:
     return (filename, os.path.getsize(filename))
 
 
-def get_file_md5(filename: str):
+def get_file_md5(filename: str) -> str:
     return (filename, calculate_file_md5(os.path.abspath(filename)))
 
 
-def remove_duplicated_files(args: argparse.Namespace):
+def remove_duplicated_files(args: argparse.Namespace) -> None:
     if args.no_cache:
         clear_cache()
 
@@ -98,7 +101,7 @@ def remove_duplicated_files(args: argparse.Namespace):
             size_files[filesize].append(filename)
         #
         # get md5 for files with the same size
-        potential_duplicates = sum([x for x in size_files.values() if len(x) > 1], [])
+        potential_duplicates = [file for x in size_files.values() if len(x) > 1 for file in x]
         for filename, md5 in tqdm(
             pool.map(get_file_md5, potential_duplicates),
             desc="Checking file content",
@@ -108,10 +111,9 @@ def remove_duplicated_files(args: argparse.Namespace):
     #
     duplicated_cnt = 0
     removed_cnt = 0
-    for md5, files in md5_files.items():
+    for files in md5_files.values():
         if len(files) == 1:
             continue
-        # print(f"Found {len(files)} files with md5 {md5}")
         # keep the one with the deepest path name
         duplicated_cnt += len(files) - 1
         sorted_files = sorted(files, key=len)
@@ -125,7 +127,7 @@ def remove_duplicated_files(args: argparse.Namespace):
     )
 
 
-def organize_files(args: argparse.Namespace):
+def organize_files(args: argparse.Namespace) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         m.move(
@@ -136,7 +138,7 @@ def organize_files(args: argparse.Namespace):
         )
 
 
-def shift_exif_date(args: argparse.Namespace):
+def shift_exif_date(args: argparse.Namespace) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         m.shift_exif(
@@ -152,7 +154,7 @@ def shift_exif_date(args: argparse.Namespace):
         )
 
 
-def set_exif_data(args: argparse.Namespace):
+def set_exif_data(args: argparse.Namespace) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         values = {}
@@ -190,7 +192,7 @@ def set_exif_data(args: argparse.Namespace):
             m.set_exif(values, args.overwrite, args.confirmed)
 
 
-def cleanup(args: argparse.Namespace):
+def cleanup(args: argparse.Namespace) -> None:
     for item in args.items:
         for root, _, files in os.walk(item):
             for f in files:
@@ -200,18 +202,15 @@ def cleanup(args: argparse.Namespace):
                         os.remove(os.path.join(root, f))
             # empty directories are always removed when traverse the directory
             if not os.listdir(root):
-                try:
-                    if args.confirmed or get_response(f"Remove empty directory {root}?"):
-                        print(f"Remove empty directory {root}")
-                        os.rmdir(root)
-                except:
-                    pass
+                if args.confirmed or get_response(f"Remove empty directory {root}?"):
+                    print(f"Remove empty directory {root}")
+                    os.rmdir(root)
 
 
 #
 # User interface
 #
-def get_common_args_parser():
+def get_common_args_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -248,12 +247,11 @@ def get_common_args_parser():
     return parser
 
 
-def parse_args(arg_list: Optional[List[str]]):
+def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="""An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library""",
         epilog="""See documentation at https://github.com/BoPeng/home-media-organizer/""",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        # parents=[],
     )
     parser.add_argument(
         "-v", "--version", action="version", version="home-media-organizer, version " + __version__
@@ -481,7 +479,7 @@ def parse_args(arg_list: Optional[List[str]]):
     return parser.parse_args(arg_list)
 
 
-def app(arg_list: Optional[List[str]] = None):
+def app(arg_list: Optional[List[str]] = None) -> None:
     args = parse_args(arg_list)
     args.func(args)
 

@@ -3,7 +3,7 @@ import fnmatch
 import os
 import threading
 from queue import Queue
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Generator
 from typing import Queue as TypingQueue
 
 import rich
@@ -13,8 +13,8 @@ from tqdm import tqdm
 from .media_file import date_func
 
 
-def iter_files(args: argparse.Namespace):
-    def allowed_filetype(filename: str):
+def iter_files(args: argparse.Namespace) -> Generator[str]:
+    def allowed_filetype(filename: str) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
         if os.path.splitext(filename)[-1] not in date_func:
@@ -22,7 +22,7 @@ def iter_files(args: argparse.Namespace):
         return True
 
     # if file is selected based on args.matches,, args.with_exif, args.without_exif
-    def allowed_metadata(metadata: Dict):
+    def allowed_metadata(metadata: Dict) -> bool:
         for cond in args.without_exif or []:
             if "=" in cond:
                 k, v = cond.split("=")
@@ -94,13 +94,13 @@ def iter_files(args: argparse.Namespace):
 
 
 class Worker(threading.Thread):
-    def __init__(self: "Worker", queue: TypingQueue[Any], task: Callable):
+    def __init__(self: "Worker", queue: TypingQueue[Any], task: Callable) -> None:
         threading.Thread.__init__(self)
         self.queue = queue
         self.task = task
         self.daemon = True
 
-    def run(self: "Worker"):
+    def run(self: "Worker") -> None:
         while True:
             item = self.queue.get()
             if item is None:
@@ -109,7 +109,7 @@ class Worker(threading.Thread):
             self.queue.task_done()
 
 
-def process_with_queue(args: argparse.Namespace, func: Callable):
+def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
     q = Queue()
     # Create worker threads
     num_workers = args.jobs or 10

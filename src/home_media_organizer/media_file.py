@@ -15,7 +15,7 @@ from PIL import Image, UnidentifiedImageError
 from .utils import get_response
 
 
-def Image_date(filename: str):
+def image_date(filename: str) -> str | None:
     try:
         i = Image.open(filename)
         date = str(i._getexif()[36867])
@@ -25,7 +25,7 @@ def Image_date(filename: str):
         return None
 
 
-def exiftool_date(filename: str):
+def exiftool_date(filename: str) -> str | None:
     with ExifToolHelper() as e:
         metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
@@ -39,7 +39,7 @@ def exiftool_date(filename: str):
         return None
 
 
-def filename_date(filename: str):
+def filename_date(filename: str) -> str:
     ext = os.path.splitext(filename)[-1]
     if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, os.path.basename(filename)):
         fn, ext = os.path.splitext(os.path.basename(filename))
@@ -104,10 +104,10 @@ def filename_date(filename: str):
 # how to handle each file type
 #
 date_func = {
-    ".jpg": (Image_date, exiftool_date, filename_date),
-    ".jpeg": (Image_date, exiftool_date, filename_date),
-    ".tiff": (Image_date,),
-    ".cr2": (filename_date, exiftool_date, Image_date),
+    ".jpg": (image_date, exiftool_date, filename_date),
+    ".jpeg": (image_date, exiftool_date, filename_date),
+    ".tiff": (image_date,),
+    ".cr2": (filename_date, exiftool_date, image_date),
     ".mp4": (exiftool_date, filename_date),
     ".mov": (exiftool_date,),
     ".3gp": (filename_date, exiftool_date),
@@ -126,7 +126,7 @@ date_func.update({x.upper(): y for x, y in date_func.items()})
 
 class MediaFile:
 
-    def __init__(self: "MediaFile", filename: str, verbose: bool = True):
+    def __init__(self: "MediaFile", filename: str, verbose: bool = True) -> None:
         self.fullname = os.path.abspath(filename)
         self.dirname, self.filename = os.path.split(self.fullname)
         self.ext = os.path.splitext(self.filename)[-1]
@@ -134,10 +134,7 @@ class MediaFile:
         self.date = None
         self.md5 = None
 
-    def size(self: "MediaFile"):
-        return os.path.getsize(self.fullname)
-
-    def get_date(self: "MediaFile"):
+    def get_date(self: "MediaFile") -> str:
         if self.date is None:
             funcs = date_func[self.ext]
             for func in funcs:
@@ -157,7 +154,9 @@ class MediaFile:
             self.date = self.date.replace(":", "").replace(" ", "_")
         return self.date
 
-    def show_exif(self: "MediaFile", keys: List[str] | None = None, format: str | None = None):
+    def show_exif(
+        self: "MediaFile", keys: List[str] | None = None, output_format: str | None = None
+    ) -> None:
         with ExifToolHelper() as e:
             metadata = e.get_metadata(self.fullname)[0]
             if keys is not None:
@@ -170,27 +169,27 @@ class MediaFile:
                         if any(fnmatch.fnmatch(k, key) for key in keys)
                     }
 
-        if not format or format == "json":
+        if not output_format or output_format == "json":
             rich.print_json(data=metadata)
         else:
             for key, value in metadata.items():
                 rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
             rich.print()
 
-    def intended_prefix(self: "MediaFile", format: str = "%Y%m%d_%H%M%S"):
+    def intended_prefix(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
         date = self.get_date()
         if not date:
             date = os.path.split(os.path.basename(self.fullname))[0]
             date = date.replace(":", "").replace(" ", "_")
-        if format == "%Y%m%d_%H%M%S":
+        if filename_format == "%Y%m%d_%H%M%S":
             return date
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
-        return filedate.strftime(format)
+        return filedate.strftime(filename_format)
 
-    def intended_name(self: "MediaFile", format: str = "%Y%m%d_%H%M%S"):
-        return self.intended_prefix(format=format) + self.ext.lower()
+    def intended_name(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
+        return self.intended_prefix(filename_format=filename_format) + self.ext.lower()
 
-    def intended_path(self: "MediaFile", root: str, dir_pattern: str, album: str):
+    def intended_path(self: "MediaFile", root: str, dir_pattern: str, album: str) -> str:
         date = self.get_date()
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
         subdir = filedate.strftime(dir_pattern)
@@ -207,7 +206,7 @@ class MediaFile:
         seconds: int = 0,
         keys: Optional[List[str]] = None,
         confirmed: bool = False,
-    ):  # pylint: disable=too-many-positional-arguments
+    ) -> None:  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
         # Calculate the total shift in timedelta
         shift_timedelta = timedelta(
@@ -219,7 +218,6 @@ class MediaFile:
             for k, v in metadata.items():
                 if not k.endswith("Date") or (keys and k not in keys):
                     continue
-                # print(f'{k}: {v}')
                 if "-" in v:
                     hrs, sec = v.split("-")
                     sec = "-" + sec
@@ -280,7 +278,7 @@ class MediaFile:
 
     def set_exif(
         self: "MediaFile", values: List[str], override: bool = False, confirmed: bool = False
-    ):
+    ) -> None:
         # add one or more 0: if the format is not YY:DD:HH:MM
         with ExifToolHelper() as e:
             metadata = e.get_metadata(self.fullname)[0]
@@ -315,19 +313,20 @@ class MediaFile:
                 rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.set_tags([self.fullname], tags=changes)
 
-    def name_ok(self: "MediaFile"):
+    def name_ok(self: "MediaFile") -> bool:
         return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)
 
-    def path_ok(self: "MediaFile", root: str, subdir: str = ""):
+    def path_ok(self: "MediaFile", root: str, subdir: str = "") -> bool:
         intended_path = self.intended_path(root, subdir)
-        # return self.fullname == os.path.join(intended_path, self.filename)
         return self.fullname.startswith(intended_path)
 
-    def rename(self: "MediaFile", format: str = "%Y%m%d_%H%M%S", confirmed: bool = False):
+    def rename(
+        self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", confirmed: bool = False
+    ) -> None:
         # allow the name to be xxxxxx_xxxxx-someotherstuff
-        if self.filename.startswith(self.intended_prefix(format=format)):
+        if self.filename.startswith(self.intended_prefix(filename_format=filename_format)):
             return
-        intended_name = self.intended_name(format=format)
+        intended_name = self.intended_name(filename_format=filename_format)
 
         try:
             for i in range(10):
@@ -363,7 +362,7 @@ class MediaFile:
         dir_pattern: str = "%Y/%b",
         album: str = "",
         confirmed: bool = False,
-    ):
+    ) -> None:
         intended_path = self.intended_path(media_root, dir_pattern, album)
         if self.fullname.startswith(intended_path):
             return

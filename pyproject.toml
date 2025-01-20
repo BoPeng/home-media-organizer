@@ -95,15 +95,9 @@ extend-exclude = ["docs/*"]
 
 [tool.ruff.lint]
 ignore = [
-  #"ANN101",
-  #"ANN001",
-  "ANN201",
-  "ANN202",
-  "ANN204",
-  "A002",
-  "B007",
-  "BLE001",
-  "C901",
+  "BLE001", # blank exception
+  "C901",   # too complex (function name too long etc)
+  # docstring etc
   "D103",
   "D415",
   "D100",
@@ -111,16 +105,14 @@ ignore = [
   "D107",
   "D101",
   "D101",
-  "ERA001",
-  "E722",
-  "F821",
-  "N802",
-  "RUF005",
-  "RUF017",
+  #"N802",
+  #"RUF005",
+  #"RUF017",
   "S603",
   "S101",
   "S324",
   "S108",
+  "S607", # subprocess.run with relative path
   "E501",
   "S110",
 ]

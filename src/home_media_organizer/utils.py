@@ -17,11 +17,11 @@ cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
 mem = joblib.Memory(cachedir, verbose=0)
 
 
-def clear_cache():
+def clear_cache() -> None:
     mem.clear()
 
 
-def get_response(msg: str, allowed: Optional[List[str]] = None):
+def get_response(msg: str, allowed: Optional[List[str]] = None) -> bool:
     while True:
         res = input(f'{msg} (y/n{"/" if allowed else ""}{"/".join(allowed or [])})? ')
         if res == "y":
@@ -34,21 +34,17 @@ def get_response(msg: str, allowed: Optional[List[str]] = None):
 
 
 @mem.cache
-def jpeg_openable(file_path: str):
+def jpeg_openable(file_path: str) -> bool:
     try:
         with Image.open(file_path) as img:
             img.verify()  # verify that it is, in fact an image
             return True
-        #
-        # i = Image.open(item)
-        # i.close()
-        #
     except UnidentifiedImageError:
         return False
 
 
 @mem.cache
-def mpg_playable(file_path: str):
+def mpg_playable(file_path: str) -> bool:
     if not ffmpeg:
         rich.print("[red]ffmpeg not installed, skip[/red]")
         return True
@@ -63,12 +59,11 @@ def mpg_playable(file_path: str):
                 return True
         return False
     except ffmpeg.Error:
-        # print(f"Error: {e.stderr.decode('utf-8')}")
         return False
 
 
 @mem.cache
-def calculate_file_md5(file_path: str):
+def calculate_file_md5(file_path: str) -> str:
     md5_hash = hashlib.md5()
     with open(file_path, "rb") as f:
         # Read and update hash in chunks of 4K
@@ -77,7 +72,7 @@ def calculate_file_md5(file_path: str):
     return md5_hash.hexdigest()
 
 
-def calculate_pattern_length(pattern: str):
+def calculate_pattern_length(pattern: str) -> int:
     length = 0
     i = 0
     while i < len(pattern):
@@ -93,7 +88,7 @@ def calculate_pattern_length(pattern: str):
     return length
 
 
-def extract_date_from_filename(date_str: str, pattern: str):
+def extract_date_from_filename(date_str: str, pattern: str) -> str:
     # Calculate the length of the date string based on the pattern
     date_length = calculate_pattern_length(pattern)
     # Extract the date part from the filename
