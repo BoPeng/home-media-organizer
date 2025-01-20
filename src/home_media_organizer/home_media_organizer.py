@@ -6,8 +6,9 @@ from queue import Queue
 from typing import Any, Callable, Dict, Generator
 
 import rich
-from exiftool import ExifToolHelper
-from tqdm import tqdm
+from exiftool import ExifToolHelper  # type: ignore
+from tqdm import tqdm  # type: ignore
+
 
 from .media_file import date_func
 
@@ -109,7 +110,7 @@ class Worker(threading.Thread):
 
 
 def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
-    q = Queue()
+    q: Queue[str] = Queue()
     # Create worker threads
     num_workers = args.jobs or 10
     for _ in range(num_workers):

@@ -6,10 +6,10 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import rich
-from exiftool import ExifToolHelper
+from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
 from .utils import get_response
@@ -18,7 +18,10 @@ from .utils import get_response
 def image_date(filename: str) -> str | None:
     try:
         i = Image.open(filename)
-        date = str(i._getexif()[36867])
+        date = None
+        if hasattr(i, "_getexif"):
+            exif_data = i._getexif()
+            date = str(exif_data[36867])
         i.close()
         return date
     except (UnidentifiedImageError, AttributeError):
@@ -29,74 +32,99 @@ def exiftool_date(filename: str) -> str | None:
     with ExifToolHelper() as e:
         metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
-            return metadata["QuickTime:MediaModifyDate"]
+            return str(metadata["QuickTime:MediaModifyDate"])
         if "QuickTime:MediaCreateDate" in metadata:
-            return metadata["QuickTime:MediaCreateDate"]
+            return str(metadata["QuickTime:MediaCreateDate"])
         if "EXIF:DateTimeOriginal" in metadata:
-            return metadata["EXIF:DateTimeOriginal"]
+            return str(metadata["EXIF:DateTimeOriginal"])
         if "Composite:DateTimeOriginal" in metadata:
-            return metadata["Composite:DateTimeOriginal"]
+            return str(metadata["Composite:DateTimeOriginal"])
         return None
 
 
 def filename_date(filename: str) -> str:
     ext = os.path.splitext(filename)[-1]
-    if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, os.path.basename(filename)):
-        fn, ext = os.path.splitext(os.path.basename(filename))
+    basename = os.path.basename(filename)
+
+    if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, basename):
+        fn, ext = os.path.splitext(basename)
         return fn.replace("-", "").replace(".", "")
+
     if re.match(
         r"video-?\d{4}\.\d{2}\.\d{2}_\d{2}-\d{2}-\d{2}" + ext,
-        os.path.basename(filename),
+        basename,
     ):
-        fn, ext = os.path.splitext(os.path.basename(filename))
+        fn, ext = os.path.splitext(basename)
         return fn.replace("-", "").replace(".", "")[5:]
-    if re.match(r"\d{8}[_-].*" + ext, os.path.basename(filename)):
-        fld = re.match(r"(\d{8})[_-](.*)" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"(\d{8})[_-](.*)" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}_{fld[1]}"
-    if re.match(r"\d{8}" + ext, os.path.basename(filename)):
-        fld = re.match(r"(\d{8})" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"(\d{8})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}"
-    if re.match(r"IMG_\d{8}_\d{6}" + ext, os.path.basename(filename)):
-        fld = re.match(r"IMG_(\d{8})_(\d{6})" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"IMG_(\d{8})_(\d{6})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}_{fld[1]:1}"
-    if re.match(r"IMG_\d{8}_\d{6}_\d" + ext, os.path.basename(filename)):
-        fld = re.match(r"IMG_(\d{8})_(\d{6})_\d" + ext, os.path.basename(filename)).groups()
+    matched = re.match(r"IMG_(\d{8})_(\d{6})_\d" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}_{fld[1]:1}"
-    if re.match(r"VID_\d{8}_\d{6}" + ext, os.path.basename(filename)):
-        fld = re.match(r"VID_(\d{8})_(\d{6})" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"VID_(\d{8})_(\d{6})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}_{fld[1]:1}"
-    if re.match(r"PXL_\d{8}_\d{9}" + ext, os.path.basename(filename)):
-        fld = re.match(r"PXL_(\d{8})_(\d{9})" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"PXL_(\d{8})_(\d{9})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>8}_{fld[1]:1}"
-    if re.match(r"video-\d{4}[\.-]\d{1,2}[\.-]\d{1,2}-.+" + ext, os.path.basename(filename)):
-        fld = re.match(
-            r"video-(\d{4})[\.-](\d{1,2})[\.-](\d{1,2})-(.+)" + ext,
-            os.path.basename(filename),
-        ).groups()
+
+    matched = re.match(
+        r"video-(\d{4})[\.-](\d{1,2})[\.-](\d{1,2})-(.+)" + ext,
+        basename,
+    )
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>4}{fld[1]:0>2}{fld[2]:0>2}_{fld[3]}"
-    if re.match(r"\d{2}[\.-]\d{1,2}[\.-]\d{1,2}-.+" + ext, os.path.basename(filename)):
-        fld = re.match(
-            r"(\d{2})[\.-](\d{1,2})[\.-](\d{1,2})-(.+)" + ext,
-            os.path.basename(filename),
-        ).groups()
+
+    matched = re.match(
+        r"(\d{2})[\.-](\d{1,2})[\.-](\d{1,2})-(.+)" + ext,
+        basename,
+    )
+    if matched:
+        fld = matched.groups()
         return f"20{fld[0]:0>2}{fld[1]:0>2}{fld[2]:0>2}_{fld[3]}"
-    if re.match(r"\d{4}-\d{1,2}-\d{1,2}-.{1,3}" + ext, os.path.basename(filename)):
-        fld = re.match(
-            r"(\d{4})-(\d{1,2})-(\d{1,2})-(.{1,3})" + ext, os.path.basename(filename)
-        ).groups()
+
+    matched = re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})-(.{1,3})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>4}{fld[1]:0>2}{fld[2]:0>2}_{fld[3]}"
-    if re.match(r"\d{2}-\d{2}-\d{2}_.+" + ext, os.path.basename(filename)):
-        fld = re.match(r"(\d{2})-(\d{2})-(\d{2})_(.*)" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"(\d{2})-(\d{2})-(\d{2})_(.*)" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"20{fld[0]:0>2}{fld[1]:0>2}{fld[2]:0>2}_{fld[3]}"
-    if re.match(r"video-\d{4}-\d{2}-\d{2}" + ext, os.path.basename(filename)):
-        fld = re.match(r"video-(\d{4})-(\d{2})-(\d{2})" + ext, os.path.basename(filename)).groups()
+
+    matched = re.match(r"video-(\d{4})-(\d{2})-(\d{2})" + ext, basename)
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>4}{fld[1]:0>2}{fld[2]:0>2}"
-    if re.match(r"voice-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}" + ext, os.path.basename(filename)):
-        fld = re.match(
-            r"voice-(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})" + ext,
-            os.path.basename(filename),
-        ).groups()
+
+    matched = re.match(
+        r"voice-(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})" + ext,
+        basename,
+    )
+    if matched:
+        fld = matched.groups()
         return f"{fld[0]:0>4}{fld[1]:0>2}{fld[2]:0>2}_{fld[3]:0>2}{fld[4]:0>2}"
+
     raise ValueError(f"Cannot extract date from filename {filename}")
 
 
@@ -126,13 +154,11 @@ date_func.update({x.upper(): y for x, y in date_func.items()})
 
 class MediaFile:
 
-    def __init__(self: "MediaFile", filename: str, verbose: bool = True) -> None:
+    def __init__(self: "MediaFile", filename: str) -> None:
         self.fullname = os.path.abspath(filename)
         self.dirname, self.filename = os.path.split(self.fullname)
         self.ext = os.path.splitext(self.filename)[-1]
-        self.verbose = verbose
-        self.date = None
-        self.md5 = None
+        self.date: str | None = None
 
     def get_date(self: "MediaFile") -> str:
         if self.date is None:
@@ -146,8 +172,6 @@ class MediaFile:
                         raise ValueError(f"Invalid date {self.date}")
                     break
                 except Exception as e:
-                    if self.verbose:
-                        print(f"{self.fullname}: {e}")
                     continue
             if not self.date:
                 return "19000101_000000"
@@ -277,7 +301,7 @@ class MediaFile:
                 e.set_tags([self.fullname], tags=changes)
 
     def set_exif(
-        self: "MediaFile", values: List[str], override: bool = False, confirmed: bool = False
+        self: "MediaFile", values: Dict[str, str], override: bool = False, confirmed: bool = False
     ) -> None:
         # add one or more 0: if the format is not YY:DD:HH:MM
         with ExifToolHelper() as e:
@@ -313,12 +337,12 @@ class MediaFile:
                 rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.set_tags([self.fullname], tags=changes)
 
-    def name_ok(self: "MediaFile") -> bool:
-        return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)
+    # def name_ok(self: "MediaFile") -> bool:
+    #     return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)
 
-    def path_ok(self: "MediaFile", root: str, subdir: str = "") -> bool:
-        intended_path = self.intended_path(root, subdir)
-        return self.fullname.startswith(intended_path)
+    # def path_ok(self: "MediaFile", root: str, subdir: str = "") -> bool:
+    #     intended_path = self.intended_path(root, subdir)
+    #     return self.fullname.startswith(intended_path)
 
     def rename(
         self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", confirmed: bool = False

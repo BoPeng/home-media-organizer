@@ -5,10 +5,10 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import rich
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from . import __version__
 from .home_media_organizer import iter_files, process_with_queue
@@ -45,7 +45,7 @@ def rename_file(item: str, filename_format: str, confirmed: bool) -> None:
 def rename_files(args: argparse.Namespace) -> None:
     if args.confirmed:
         process_with_queue(
-            args, lambda x, filename_format=args.format: rename_file(x, format, True)
+            args, lambda x, filename_format=args.format: rename_file(x, filename_format, True)
         )
     else:
         for item in iter_files(args):
@@ -58,7 +58,7 @@ def check_media_file(item: str, remove: bool = False, confirmed: bool = False) -
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
         rich.print(f"[red][bold]{item}[/bold] is corrupted.[/red]")
-        if remove and (confirmed or get_response("Remove it?", ["y", "n"]) == "y"):
+        if remove and (confirmed or get_response("Remove it?")):
             rich.print(f"[red][bold]{item}[/bold] is removed.[/red]")
             os.remove(item)
 
@@ -78,11 +78,11 @@ def validate_media_files(args: argparse.Namespace) -> None:
             check_media_file(item, remove=args.remove, confirmed=args.confirmed)
 
 
-def get_file_size(filename: str) -> int:
+def get_file_size(filename: str) -> Tuple[str, int]:
     return (filename, os.path.getsize(filename))
 
 
-def get_file_md5(filename: str) -> str:
+def get_file_md5(filename: str) -> Tuple[str, str]:
     return (filename, calculate_file_hash(os.path.abspath(filename)))
 
 
@@ -479,9 +479,10 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     return parser.parse_args(arg_list)
 
 
-def app(arg_list: Optional[List[str]] = None) -> None:
+def app(arg_list: Optional[List[str]] = None) -> int:
     args = parse_args(arg_list)
     args.func(args)
+    return 0
 
 
 if __name__ == "__main__":

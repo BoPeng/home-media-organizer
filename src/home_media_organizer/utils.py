@@ -4,12 +4,12 @@ import tempfile
 from datetime import datetime
 from typing import List, Optional
 
-import joblib
+import joblib  # type: ignore
 import rich
 from PIL import Image, UnidentifiedImageError
 
 try:
-    import ffmpeg
+    import ffmpeg  # type: ignore
 except ImportError:
     ffmpeg = None
 
@@ -21,15 +21,13 @@ def clear_cache() -> None:
     mem.clear()
 
 
-def get_response(msg: str, allowed: Optional[List[str]] = None) -> bool:
+def get_response(msg: str) -> bool:
     while True:
-        res = input(f'{msg} (y/n{"/" if allowed else ""}{"/".join(allowed or [])})? ')
+        res = input(f"{msg} (y/n)? ")
         if res == "y":
             return True
         if res == "n":
             return False
-        if allowed and res in allowed:
-            return res
         print("Invalid response, please try again")
 
 
@@ -88,7 +86,7 @@ def calculate_pattern_length(pattern: str) -> int:
     return length
 
 
-def extract_date_from_filename(date_str: str, pattern: str) -> str:
+def extract_date_from_filename(date_str: str, pattern: str) -> datetime:
     # Calculate the length of the date string based on the pattern
     date_length = calculate_pattern_length(pattern)
     # Extract the date part from the filename
