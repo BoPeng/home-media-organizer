@@ -104,10 +104,11 @@ ignore = [
   "D103",
   "D107",
   "D415",
-  "S108", # use of /tmp
-  "S603", # subprocess.run security
-  "S607", # subprocess.run with relative path
-  "E501", # line too long
+  "ERA001", # commented code
+  "S108",   # use of /tmp
+  "S603",   # subprocess.run security
+  "S607",   # subprocess.run with relative path
+  "E501",   # line too long
 ]
 select = [
   "E",
