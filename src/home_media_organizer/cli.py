@@ -31,14 +31,16 @@ def list_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     """List all or selected media files."""
     for cnt, item in enumerate(iter_files(args)):
         print(item)
-    logger.info(f"[magenta]{cnt + 1}[/magenta] files found.")
+    if logger is not None:
+        logger.info(f"[magenta]{cnt + 1}[/magenta] files found.")
 
 
 def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for cnt, item in enumerate(iter_files(args)):
         m = MediaFile(item)
         m.show_exif(args.keys, output_format=args.format)
-    logger.info(f"[blue]{cnt}[/blue] files shown.")
+    if logger is not None:
+        logger.info(f"[blue]{cnt}[/blue] files shown.")
 
 
 def rename_file(
@@ -59,7 +61,8 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
         )
     else:
         for item in iter_files(args):
-            logger.info(f"Processing [blue]{item}[/blue]")
+            if logger is not None:
+                logger.info(f"Processing [blue]{item}[/blue]")
             rename_file(item, args.format, args.confirmed, logger)
 
 
@@ -69,9 +72,11 @@ def check_media_file(
     if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
-        logger.info(f"[red][bold]{item}[/bold] is corrupted.[/red]")
+        if logger is not None:
+            logger.info(f"[red][bold]{item}[/bold] is corrupted.[/red]")
         if remove and (confirmed or get_response("Remove it?")):
-            logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
+            if logger is not None:
+                logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
             os.remove(item)
 
 
@@ -130,13 +135,15 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
         duplicated_cnt += len(files) - 1
         sorted_files = sorted(files, key=len)
         for filename in sorted_files[:-1]:
-            logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
+            if logger is not None:
+                logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
             if args.confirmed or get_response("Remove it?"):
                 os.remove(filename)
                 removed_cnt += 1
-    logger.info(
-        f"[blue]{removed_cnt}[/blue] out of [blue]{duplicated_cnt}[/blue] duplicated files are removed."
-    )
+    if logger is not None:
+        logger.info(
+            f"[blue]{removed_cnt}[/blue] out of [blue]{duplicated_cnt}[/blue] duplicated files are removed."
+        )
 
 
 def organize_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
@@ -177,7 +184,8 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
             args.values += sys.stdin.read().strip().split("\n")
         for item in args.values:
             if "=" not in item:
-                logger.info(f"[red]Invalid exif value {item}. Should be key=value[/red]")
+                if logger is not None:
+                    logger.error(f"[red]Invalid exif value {item}. Should be key=value[/red]")
                 sys.exit(1)
             k, v = item.split("=", 1)
             values[k] = v
@@ -189,15 +197,17 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
                     values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
 
             except ValueError:
-                logger.info(
-                    f"[red]Ignore {m.filename} with invalid date format {args.from_filename}[/red]"
-                )
+                if logger is not None:
+                    logger.info(
+                        f"[red]Ignore {m.filename} with invalid date format {args.from_filename}[/red]"
+                    )
                 continue
         elif args.from_date:
             try:
                 date = datetime.strptime(args.from_date, "%Y%m%d_%H%M%S")
             except ValueError:
-                logger.info(f"[red]Invalid date format {args.from_date}[/red]")
+                if logger is not None:
+                    logger.info(f"[red]Invalid date format {args.from_date}[/red]")
                 sys.exit(1)
             for k in args.keys:
                 values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
@@ -212,12 +222,14 @@ def cleanup(args: argparse.Namespace, logger: logging.Logger | None) -> None:
             for f in files:
                 if any(fnmatch.fnmatch(f, x) for x in args.file_types):
                     if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):
-                        logger.info(f"Remove {os.path.join(root, f)}")
+                        if logger is not None:
+                            logger.info(f"Remove {os.path.join(root, f)}")
                         os.remove(os.path.join(root, f))
             # empty directories are always removed when traverse the directory
             if not os.listdir(root):
                 if args.confirmed or get_response(f"Remove empty directory {root}?"):
-                    logger.info(f"Remove empty directory [blue]{root}[/blue]")
+                    if logger is not None:
+                        logger.info(f"Remove empty directory [blue]{root}[/blue]")
                     os.rmdir(root)
 
 
