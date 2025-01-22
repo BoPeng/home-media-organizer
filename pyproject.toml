@@ -58,7 +58,7 @@ safety = "^3.2.11"
 mypy = "^1.13.0"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^7.4.7"
+sphinx = ">=7.4.7,<9.0.0"
 recommonmark = "^0.7.1"
 
 [tool.coverage.paths]
