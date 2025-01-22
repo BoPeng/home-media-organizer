@@ -6,6 +6,7 @@ from datetime import datetime
 import joblib  # type: ignore
 import rich
 from PIL import Image, UnidentifiedImageError
+from rich.prompt import Prompt
 
 try:
     import ffmpeg  # type: ignore
@@ -21,13 +22,7 @@ def clear_cache() -> None:
 
 
 def get_response(msg: str) -> bool:
-    while True:
-        res = input(f"{msg} (y/n)? ")
-        if res == "y":
-            return True
-        if res == "n":
-            return False
-        print("Invalid response, please try again")
+    return Prompt.ask(msg, choices=["y", "n"], default="y") == "y"
 
 
 @mem.cache

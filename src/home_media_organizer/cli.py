@@ -39,6 +39,7 @@ def show_exif(args: argparse.Namespace) -> None:
 
 def rename_file(item: str, filename_format: str, confirmed: bool) -> None:
     m = MediaFile(item)
+    # rich.print(f"Processing [blue]{item}[/blue]")
     m.rename(filename_format=filename_format, confirmed=confirmed)
 
 

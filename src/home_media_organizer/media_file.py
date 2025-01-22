@@ -390,9 +390,10 @@ class MediaFile:
         intended_path = self.intended_path(media_root, dir_pattern, album)
         if self.fullname.startswith(intended_path):
             return
-        if confirmed or get_response(f"Move {self.fullname} to {intended_path}"):
-            if not os.path.isdir(intended_path):
-                os.makedirs(intended_path)
+        if confirmed or get_response(
+            f"Move [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
+        ):
+            os.makedirs(intended_path, exist_ok=True)
             for i in range(10):
                 try:
                     if i > 0:
@@ -407,7 +408,12 @@ class MediaFile:
                             print(f"Remove duplicated file {self.fullname}")
                             return
                         continue
+
                     shutil.move(self.fullname, new_file)
+                    rich.print(
+                        f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                    )
+                    break
                 except Exception as e:
                     print(f"Failed to move {self.fullname}: {e}")
                     raise

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1]
+
+- Fix a bug in `hmo organize.
+- Improved prompt (allow default).
+
 ## [0.3.0]
 
 - Expand `--with-exif` and `--without-exif` to allow single `key` and allow `*` in `key`.
