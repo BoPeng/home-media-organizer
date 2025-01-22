@@ -1,5 +1,6 @@
 import argparse
 import fnmatch
+import logging
 import os
 import sys
 from collections import defaultdict
@@ -7,7 +8,8 @@ from datetime import datetime
 from multiprocessing import Pool
 from typing import List, Optional, Tuple
 
-import rich
+from rich.console import Console
+from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
 
 from . import __version__
@@ -25,58 +27,67 @@ from .utils import (
 
 # command line tools
 #
-def list_files(args: argparse.Namespace) -> None:
+def list_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     """List all or selected media files."""
-    for item in iter_files(args):
+    for cnt, item in enumerate(iter_files(args)):
         print(item)
+    logger.info(f"[magenta]{cnt + 1}[/magenta] files found.")
 
 
-def show_exif(args: argparse.Namespace) -> None:
-    for item in iter_files(args):
+def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    for cnt, item in enumerate(iter_files(args)):
         m = MediaFile(item)
         m.show_exif(args.keys, output_format=args.format)
+    logger.info(f"[blue]{cnt}[/blue] files shown.")
 
 
-def rename_file(item: str, filename_format: str, confirmed: bool) -> None:
+def rename_file(
+    item: str, filename_format: str, confirmed: bool, logger: logging.Logger | None
+) -> None:
     m = MediaFile(item)
-    # rich.print(f"Processing [blue]{item}[/blue]")
-    m.rename(filename_format=filename_format, confirmed=confirmed)
+    # logger.info(f"Processing [blue]{item}[/blue]")
+    m.rename(filename_format=filename_format, confirmed=confirmed, logger=logger)
 
 
-def rename_files(args: argparse.Namespace) -> None:
+def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.confirmed:
         process_with_queue(
-            args, lambda x, filename_format=args.format: rename_file(x, filename_format, True)
+            args,
+            lambda x, filename_format=args.format, logger=logger: rename_file(
+                x, filename_format, True, logger
+            ),
         )
     else:
         for item in iter_files(args):
-            rich.print(f"Processing [blue]{item}[/blue]")
-            rename_file(item, args.format, args.confirmed)
+            logger.info(f"Processing [blue]{item}[/blue]")
+            rename_file(item, args.format, args.confirmed, logger)
 
 
-def check_media_file(item: str, remove: bool = False, confirmed: bool = False) -> None:
+def check_media_file(
+    item: str, remove: bool = False, confirmed: bool = False, logger: logging.Logger | None = None
+) -> None:
     if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
         any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
     ):
-        rich.print(f"[red][bold]{item}[/bold] is corrupted.[/red]")
+        logger.info(f"[red][bold]{item}[/bold] is corrupted.[/red]")
         if remove and (confirmed or get_response("Remove it?")):
-            rich.print(f"[red][bold]{item}[/bold] is removed.[/red]")
+            logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
             os.remove(item)
 
 
-def validate_media_files(args: argparse.Namespace) -> None:
+def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
         clear_cache()
     if args.confirmed or not args.remove:
         process_with_queue(
             args,
-            lambda x, remove=args.remove, confirmed=args.confirmed: check_media_file(
-                x, remove=remove, confirmed=confirmed
+            lambda x, remove=args.remove, confirmed=args.confirmed, logger=logger: check_media_file(
+                x, remove=remove, confirmed=confirmed, logger=logger
             ),
         )
     else:
         for item in iter_files(args):
-            check_media_file(item, remove=args.remove, confirmed=args.confirmed)
+            check_media_file(item, remove=args.remove, confirmed=args.confirmed, logger=logger)
 
 
 def get_file_size(filename: str) -> Tuple[str, int]:
@@ -87,7 +98,7 @@ def get_file_md5(filename: str) -> Tuple[str, str]:
     return (filename, calculate_file_hash(os.path.abspath(filename)))
 
 
-def remove_duplicated_files(args: argparse.Namespace) -> None:
+def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
         clear_cache()
 
@@ -119,16 +130,16 @@ def remove_duplicated_files(args: argparse.Namespace) -> None:
         duplicated_cnt += len(files) - 1
         sorted_files = sorted(files, key=len)
         for filename in sorted_files[:-1]:
-            rich.print(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
+            logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
             if args.confirmed or get_response("Remove it?"):
                 os.remove(filename)
                 removed_cnt += 1
-    rich.print(
+    logger.info(
         f"[blue]{removed_cnt}[/blue] out of [blue]{duplicated_cnt}[/blue] duplicated files are removed."
     )
 
 
-def organize_files(args: argparse.Namespace) -> None:
+def organize_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         m.move(
@@ -136,10 +147,11 @@ def organize_files(args: argparse.Namespace) -> None:
             dir_pattern=args.dir_pattern,
             album=args.album,
             confirmed=args.confirmed,
+            logger=logger,
         )
 
 
-def shift_exif_date(args: argparse.Namespace) -> None:
+def shift_exif_date(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         m.shift_exif(
@@ -152,10 +164,11 @@ def shift_exif_date(args: argparse.Namespace) -> None:
             seconds=args.seconds,
             keys=args.keys,
             confirmed=args.confirmed,
+            logger=logger,
         )
 
 
-def set_exif_data(args: argparse.Namespace) -> None:
+def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for item in iter_files(args):
         m = MediaFile(item)
         values = {}
@@ -164,7 +177,7 @@ def set_exif_data(args: argparse.Namespace) -> None:
             args.values += sys.stdin.read().strip().split("\n")
         for item in args.values:
             if "=" not in item:
-                rich.print(f"[red]Invalid exif value {item}. Should be key=value[/red]")
+                logger.info(f"[red]Invalid exif value {item}. Should be key=value[/red]")
                 sys.exit(1)
             k, v = item.split("=", 1)
             values[k] = v
@@ -176,7 +189,7 @@ def set_exif_data(args: argparse.Namespace) -> None:
                     values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
 
             except ValueError:
-                rich.print(
+                logger.info(
                     f"[red]Ignore {m.filename} with invalid date format {args.from_filename}[/red]"
                 )
                 continue
@@ -184,27 +197,27 @@ def set_exif_data(args: argparse.Namespace) -> None:
             try:
                 date = datetime.strptime(args.from_date, "%Y%m%d_%H%M%S")
             except ValueError:
-                rich.print(f"[red]Invalid date format {args.from_date}[/red]")
+                logger.info(f"[red]Invalid date format {args.from_date}[/red]")
                 sys.exit(1)
             for k in args.keys:
                 values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
         #
         if values:
-            m.set_exif(values, args.overwrite, args.confirmed)
+            m.set_exif(values, args.overwrite, args.confirmed, logger=logger)
 
 
-def cleanup(args: argparse.Namespace) -> None:
+def cleanup(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for item in args.items:
         for root, _, files in os.walk(item):
             for f in files:
                 if any(fnmatch.fnmatch(f, x) for x in args.file_types):
                     if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):
-                        print(f"Remove {os.path.join(root, f)}")
+                        logger.info(f"Remove {os.path.join(root, f)}")
                         os.remove(os.path.join(root, f))
             # empty directories are always removed when traverse the directory
             if not os.listdir(root):
                 if args.confirmed or get_response(f"Remove empty directory {root}?"):
-                    print(f"Remove empty directory {root}")
+                    logger.info(f"Remove empty directory [blue]{root}[/blue]")
                     os.rmdir(root)
 
 
@@ -255,7 +268,13 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "-v", "--version", action="version", version="home-media-organizer, version " + __version__
+        "-c",
+        "--config",
+        help="""A configuration file in toml format. The configuration
+        will be merged with configuration from ~/.home-media-organizer/config.toml""",
+    )
+    parser.add_argument(
+        "--version", action="version", version="home-media-organizer, version " + __version__
     )
     # common options for all
     parent_parser = get_common_args_parser()
@@ -351,8 +370,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_organize.add_argument(
         "--dir-pattern",
-        default="%Y/%b",
-        help="Location for the alborum, which is by default derived from media year and month.",
+        help="Location for the album, which is by default derived from media year and month.",
     )
     parser_organize.add_argument(
         "--album",
@@ -482,7 +500,22 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
 
 def app(arg_list: Optional[List[str]] = None) -> int:
     args = parse_args(arg_list)
-    args.func(args)
+    logging.basicConfig(
+        level="DEBUG" if args.verbose else "INFO",
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[
+            RichHandler(
+                markup=True,
+                console=Console(stderr=True),
+                show_path=False if args.verbose is None else args.verbose,
+            )
+        ],
+    )
+
+    logger = logging.getLogger("monitor")
+
+    args.func(args, logger)
     return 0
 
 

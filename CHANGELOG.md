@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix a bug in `hmo organize.
 - Improved prompt (allow default).
+- Allow for configuration files
 
 ## [0.3.0]
 

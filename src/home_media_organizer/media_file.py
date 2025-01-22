@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta
+from logging import Logger
 from typing import Dict, List, Optional
 
 import rich
@@ -230,6 +231,7 @@ class MediaFile:
         seconds: int = 0,
         keys: Optional[List[str]] = None,
         confirmed: bool = False,
+        logger: Optional[Logger] = None,
     ) -> None:  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
         # Calculate the total shift in timedelta
@@ -274,7 +276,8 @@ class MediaFile:
                 #
                 new_datetime = original_datetime + shift_timedelta
                 if new_datetime >= datetime.now():
-                    rich.print(f"[magenta]Ignore future date {new_datetime}[/magenta].")
+                    if logger is not None:
+                        logger.info(f"[magenta]Ignore future date {new_datetime}[/magenta].")
                 elif k == "File:FileModifyDate":
                     if confirmed or get_response(
                         f"Modify file modified date {os.path.basename(self.fullname)} to {new_datetime}?"
@@ -284,16 +287,18 @@ class MediaFile:
                         # Set the new modification time
                         os.utime(self.fullname, (new_mod_time, new_mod_time))
                 elif k.startswith("File:"):
-                    rich.print(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
+                    if logger is not None:
+                        logger.info(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
                 else:
                     new_v = new_datetime.strftime("%Y:%m:%d %H:%M:%S") + sec
                     changes[k] = new_v
             if not changes:
                 return
             for k, new_v in changes.items():
-                rich.print(
-                    f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
-                )
+                if logger is not None:
+                    logger.info(
+                        f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
+                    )
             #
             if confirmed or get_response(
                 f"Shift dates of {os.path.basename(self.fullname)} as shown above?"
@@ -301,7 +306,11 @@ class MediaFile:
                 e.set_tags([self.fullname], tags=changes)
 
     def set_exif(
-        self: "MediaFile", values: Dict[str, str], override: bool = False, confirmed: bool = False
+        self: "MediaFile",
+        values: Dict[str, str],
+        override: bool = False,
+        confirmed: bool = False,
+        logger: Logger | None = None,
     ) -> None:
         # add one or more 0: if the format is not YY:DD:HH:MM
         with ExifToolHelper() as e:
@@ -321,20 +330,27 @@ class MediaFile:
                             new_mod_time = new_datetime.timestamp()
                             # Set the new modification time
                             os.utime(self.fullname, (new_mod_time, new_mod_time))
-                            rich.print(
-                                f"Set File:FileModifyDate of [magenta]{self.filename}[/magenta] to [blue]{v}[/blue]"
-                            )
+                            if logger is not None:
+                                logger.info(
+                                    f"Set File:FileModifyDate of [magenta]{self.filename}[/magenta] to [blue]{v}[/blue]"
+                                )
                         except ValueError:
-                            rich.print(f"[red]Invalid date format {v}[/red]")
+                            if logger:
+                                logger.error(f"[red]Invalid date format {v}[/red]")
                 elif k.startswith("File:"):
-                    rich.print(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
+                    if logger is not None:
+                        logger.info(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
                 else:
-                    rich.print(f"Set {k} of {self.filename} to [blue]{v}[/blue]")
+                    if logger is not None:
+                        logger.info(
+                            f"Set {k} of [magenta]{self.filename}[/magenta] to [blue]{v}[/blue]"
+                        )
                     changes[k] = v
             if not changes:
                 return
             if confirmed or get_response(f"Set exif of {self.fullname}"):
-                rich.print(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
+                if logger is not None:
+                    logger.info(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.set_tags([self.fullname], tags=changes)
 
     # def name_ok(self: "MediaFile") -> bool:
@@ -345,7 +361,10 @@ class MediaFile:
     #     return self.fullname.startswith(intended_path)
 
     def rename(
-        self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", confirmed: bool = False
+        self: "MediaFile",
+        filename_format: str = "%Y%m%d_%H%M%S",
+        confirmed: bool = False,
+        logger: Logger | None = None,
     ) -> None:
         # allow the name to be xxxxxx_xxxxx-someotherstuff
         if self.filename.startswith(self.intended_prefix(filename_format=filename_format)):
@@ -367,25 +386,35 @@ class MediaFile:
                         if confirmed or get_response(
                             f"Rename {self.fullname} to an existing file {new_file}"
                         ):
+                            if logger is not None:
+                                logger.info(
+                                    f"Removed duplicated file [blue]{os.path.basename(self.fullname)}[/blue]"
+                                )
                             os.remove(self.fullname)
                         # switch itself to new file
                         break
                     continue
                 if confirmed or get_response(f"Rename {self.fullname} to {new_file}"):
+                    if logger is not None:
+                        logger.info(
+                            f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                        )
                     os.rename(self.fullname, new_file)
                 break
             #
             self.fullname = new_file
             self.filename = nn
         except Exception as e:
-            print(f"Failed to rename {self.fullname}: {e}")
+            if logger is not None:
+                logger.error(f"Failed to rename {self.fullname}: {e}")
 
     def move(
         self: "MediaFile",
-        media_root: str = "/Volumes/Public/MyPictures",
-        dir_pattern: str = "%Y/%b",
+        media_root: str,
+        dir_pattern: str,
         album: str = "",
         confirmed: bool = False,
+        logger: Logger | None = None,
     ) -> None:
         intended_path = self.intended_path(media_root, dir_pattern, album)
         if self.fullname.startswith(intended_path):
@@ -410,10 +439,12 @@ class MediaFile:
                         continue
 
                     shutil.move(self.fullname, new_file)
-                    rich.print(
-                        f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
-                    )
+                    if logger is not None:
+                        logger.info(
+                            f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                        )
                     break
                 except Exception as e:
-                    print(f"Failed to move {self.fullname}: {e}")
+                    if logger is not None:
+                        logger.error(f"Failed to move {self.fullname}: {e}")
                     raise

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "home-media-organizer"
-version = "0.3.0"
+version = "0.3.1"
 description = "A Swiss Army Knife for your home media library."
 authors = ["Bo Peng <ben.bob@gmail.com>"]
 readme = "README.md"
@@ -33,6 +33,7 @@ rich = "13.9.4"
 joblib = "^1.4.2"
 ffmpeg-python = "^0.2.0"
 pyexiftool = "0.5.6"
+tomli = { version = "2.2.1", markers = "python_version < '3.11'" }
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.0.1"
@@ -102,8 +103,10 @@ ignore = [
   "D102",
   "D103",
   "D107",
+  "B007",
   "D415",
   "ERA001", # commented code
+  "G004",
   "S108",   # use of /tmp
   "S603",   # subprocess.run security
   "S607",   # subprocess.run with relative path

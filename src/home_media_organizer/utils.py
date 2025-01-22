@@ -2,6 +2,7 @@ import hashlib
 import platform
 import tempfile
 from datetime import datetime
+from typing import Any, Dict
 
 import joblib  # type: ignore
 import rich
@@ -85,3 +86,29 @@ def extract_date_from_filename(date_str: str, pattern: str) -> datetime:
     date_length = calculate_pattern_length(pattern)
     # Extract the date part from the filename
     return datetime.strptime(date_str[:date_length], pattern)
+
+
+def merge_dicts(dicts: list) -> dict:
+    """Merge a list of dictionaries into a single dictionary, including nested dictionaries.
+
+    :param dicts: A list of dictionaries to merge.
+    :return: A single merged dictionary.
+    """
+
+    def merge(d1: dict, d2: dict) -> dict:
+        for key, value in d2.items():
+            if key in d1:
+                if isinstance(d1[key], dict) and isinstance(value, dict):
+                    d1[key] = merge(d1[key], value)
+                elif isinstance(d1[key], list) and isinstance(value, list):
+                    d1[key].extend(value)
+                else:
+                    d1[key] = value
+            else:
+                d1[key] = value
+        return d1
+
+    result: Dict[str, Any] = {}
+    for dictionary in dicts:
+        result = merge(result, dictionary)
+    return result
