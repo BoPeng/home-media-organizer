@@ -63,20 +63,52 @@ The following is just how I would like to organize my home photos and videos. Th
 
 The following is just how I like to organize my home photos and videos. This tool can support other methods, but the following layout is best supported.
 
-1. Files are organized by `YEAR/MONTH/ALBUM/` where:
+1. Files are organized by `YEAR/YEAR-MONTH-ALBUM/` where:
 
    - `YEAR` is the four-digit year number.
-   - `MONTH` is usually `Jan`, `Feb`, etc., but you can use other formats.
+   - `MONTH` is usually `01`, `02`, etc., but you can use other formats.
    - `ALBUM` is **optional**; by default, all files from the same month are in the same directory.
 
-2. Files are named by `YYYYMMDD_HHMMSS_OTHERINFO.EXT` where
+2. Files are named by `YYYYMMDD_HHMMSS-COMMENT.EXT` where
 
    - `YYYYNNDD` is year, month, day
    - `HHMMSS` is hour, minute, second
-   - `OTHERINFO` is optional so most files should looks like `YYYYMMDD_HHMMSS.EXT`.
+   - `COMMENT` is optional so most files should looks like `YYYYMMDD_HHMMSS.EXT`.
 
    This is the filename format used by many cameras and camcorders, which allows you to use files dumped from cameras
    without having to rename them. and usually matches. You can optionally add some other information to the filename.
+
+### Configuration file
+
+Although all parameters can be specified via command line, it is a good practice to list values of some parameters in configuration files so that you do not have to specify them each time.
+
+HMO recognizes
+
+- `~/.home-media-organizer/config.toml`
+- `./.home-media-organizer.toml`
+- And any configuration file specified with option `--config`
+
+The format of the configuration is [TOML](https://toml.io/en/), and you basically can list parameters as
+
+```toml
+[cleanup]
+file_types = [
+  "*.MOI",
+  "*.PGI",
+  ".LRC",
+  "*.THM",
+  "Default.PLS",
+  ".picasa*.ini",
+  "Thumbs.db",
+  "*.ini",
+  "*.bat",
+  "autprint*"
+  ]
+```
+
+Any parameters can be listed and will be used as if they are specified via command line, although you can override them via command line options.
+
+**NOTE**: If you have multiple configuration files, their values will be merged.
 
 ### List all or selected media files
 
@@ -149,12 +181,6 @@ hmo set-exif 2000 --file-types tiff --from-date 20190824_203205
 This operation will set
 
 - `EXIF:DateTimeOriginal`
-- `QuickTime:CreateDate`
-- `QuickTime:ModifyDate`
-- `QuickTime:TrackCreateDate`
-- `QuickTime:TrackModifyDate`
-- `QuickTime:MediaCreateDate`
-- `QuickTime:MediaModifyDate`
 
 where at least the first one appears to be [what PLEX server uses](https://exiftool.org/forum/index.php?topic=13287.0).
 
@@ -183,6 +209,8 @@ hmo show-exif path/to/anotherfile --keys '*Date' --format text \
 Here we allow `hom set-exif` to read key=value pairs from standard input
 
 **NOTE**: Writing exif to some file types (e.g. `*.mpg`) are not supported, so the operation of changing filenames may fail on some media files.
+
+**NOTE**: Not all exif metadata can be set and the program may exit with an error if `exiftool` fails to update.
 
 **NOTE**: Please see the notes regarding `File:FileModifyDate` if you encounter files without proper EXIF date information and cannot be modified by exiftool.
 

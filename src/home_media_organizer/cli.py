@@ -13,6 +13,7 @@ from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
 
 from . import __version__
+from .config import Config
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
 from .utils import (
@@ -29,16 +30,20 @@ from .utils import (
 #
 def list_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     """List all or selected media files."""
-    for cnt, item in enumerate(iter_files(args)):
+    cnt = 0
+    for item in iter_files(args):
         print(item)
+        cnt += 1
     if logger is not None:
-        logger.info(f"[magenta]{cnt + 1}[/magenta] files found.")
+        logger.info(f"[magenta]{cnt}[/magenta] files found.")
 
 
 def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
-    for cnt, item in enumerate(iter_files(args)):
+    cnt = 0
+    for item in iter_files(args):
         m = MediaFile(item)
         m.show_exif(args.keys, output_format=args.format)
+        cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files shown.")
 
@@ -179,16 +184,17 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
     for item in iter_files(args):
         m = MediaFile(item)
         values = {}
-        if "-" in args.values:
-            args.values.remove("-")
-            args.values += sys.stdin.read().strip().split("\n")
-        for item in args.values:
-            if "=" not in item:
-                if logger is not None:
-                    logger.error(f"[red]Invalid exif value {item}. Should be key=value[/red]")
-                sys.exit(1)
-            k, v = item.split("=", 1)
-            values[k] = v
+        if args.values:
+            if "-" in args.values:
+                args.values.remove("-")
+                args.values += sys.stdin.read().strip().split("\n")
+            for item in args.values:
+                if "=" not in item:
+                    if logger is not None:
+                        logger.error(f"[red]Invalid exif value {item}. Should be key=value[/red]")
+                    sys.exit(1)
+                k, v = item.split("=", 1)
+                values[k] = v
         # from filename?
         if args.from_filename:
             try:
@@ -219,12 +225,13 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
 def cleanup(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     for item in args.items:
         for root, _, files in os.walk(item):
-            for f in files:
-                if any(fnmatch.fnmatch(f, x) for x in args.file_types):
-                    if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):
-                        if logger is not None:
-                            logger.info(f"Remove {os.path.join(root, f)}")
-                        os.remove(os.path.join(root, f))
+            if args.file_types:
+                for f in files:
+                    if any(fnmatch.fnmatch(f, x) for x in args.file_types):
+                        if args.confirmed or get_response(f"Remove {os.path.join(root, f)}?"):
+                            if logger is not None:
+                                logger.info(f"Remove {os.path.join(root, f)}")
+                            os.remove(os.path.join(root, f))
             # empty directories are always removed when traverse the directory
             if not os.listdir(root):
                 if args.confirmed or get_response(f"Remove empty directory {root}?"):
@@ -300,7 +307,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         parents=[parent_parser],
         help="List filename",
     )
-    parser_list.set_defaults(func=list_files)
+    parser_list.set_defaults(func=list_files, command="list")
     #
     # show EXIF of files
     #
@@ -317,7 +324,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         default="json",
         help="Show output in json or text format",
     )
-    parser_show.set_defaults(func=show_exif)
+    parser_show.set_defaults(func=show_exif, command="show-exif")
     #
     # check jpeg
     #
@@ -335,7 +342,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         action="store_true",
         help="invalidate cached validation results and re-validate all files again.",
     )
-    parser_validate.set_defaults(func=validate_media_files)
+    parser_validate.set_defaults(func=validate_media_files, command="validate")
     #
     # rename file to its canonical name
     #
@@ -347,10 +354,9 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_rename.add_argument(
         "--format",
-        default="%Y%m%d_%H%M%S",
         help="Format of the filename.",
     )
-    parser_rename.set_defaults(func=rename_files)
+    parser_rename.set_defaults(func=rename_files, command="rename")
     #
     # dedup: remove duplicated files
     #
@@ -365,7 +371,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         action="store_true",
         help="invalidate cached file signatures and re-examine all file content.",
     )
-    parser_dedup.set_defaults(func=remove_duplicated_files)
+    parser_dedup.set_defaults(func=remove_duplicated_files, command="dedup")
     #
     # organize files
     #
@@ -388,7 +394,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         "--album",
         help="Album name for the photo, if need to further organize the media files by albums.",
     )
-    parser_organize.set_defaults(func=organize_files)
+    parser_organize.set_defaults(func=organize_files, command="organize")
     #
     # shift date of EXIF
     #
@@ -421,7 +427,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         help="""A list of date keys that will be set. All keys ending with `Date`
          will be changed if left unspecified. """,
     )
-    parser_shift.set_defaults(func=shift_exif_date)
+    parser_shift.set_defaults(func=shift_exif_date, command="shift-exif")
     #
     # set dates of EXIF
     #
@@ -433,7 +439,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             existing exif will not be overwritten.""",
     )
     parser_set_exif.add_argument(
-        "values",
+        "--values",
         nargs="*",
         help="""key=value pairs that you can set to the media files.
           If a value '-' is specified, hmo will read from standard
@@ -458,15 +464,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser_set_exif.add_argument(
         "--keys",
         nargs="+",
-        default=[
-            "EXIF:DateTimeOriginal",
-            "QuickTime:CreateDate",
-            "QuickTime:ModifyDate",
-            "QuickTime:TrackCreateDate",
-            "QuickTime:TrackModifyDate",
-            "QuickTime:MediaCreateDate",
-            "QuickTime:MediaModifyDate",
-        ],
+        default=["EXIF:DateTimeOriginal"],
         help="""A list of date keys that will be set if options
         --from-date or --from-filename is specified.
         """,
@@ -477,7 +475,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         help="""If specified, overwrite existing exif data.
         """,
     )
-    parser_set_exif.set_defaults(func=set_exif_data)
+    parser_set_exif.set_defaults(func=set_exif_data, command="set-exif")
     #
     # cleanup
     #
@@ -490,24 +488,20 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser_cleanup.add_argument(
         "file-types",
         nargs="*",
-        default=[
-            "*.MOI",
-            "*.PGI",
-            ".LRC",
-            "*.THM",
-            "Default.PLS",
-            ".picasa*.ini",
-            "Thumbs.db",
-            "*.ini",
-            "*.bat",
-            "autprint*",
-        ],
         help="Files or patterns to be removed.",
     )
-    parser_cleanup.set_defaults(func=cleanup)
+    parser_cleanup.set_defaults(func=cleanup, command="cleanup")
 
-    # calling the associated functions
-    return parser.parse_args(arg_list)
+    # load configuration
+    args = parser.parse_args(arg_list)
+    config = Config(args.config).config
+    # assign config to args
+    if args.command in config:
+        for k, v in config[args.command].items():
+            if getattr(args, k, None) is not None:
+                continue
+            setattr(args, k, v)
+    return args
 
 
 def app(arg_list: Optional[List[str]] = None) -> int:
@@ -525,8 +519,8 @@ def app(arg_list: Optional[List[str]] = None) -> int:
         ],
     )
 
-    logger = logging.getLogger("monitor")
-
+    logger = logging.getLogger(args.command)
+    # calling the associated functions
     args.func(args, logger)
     return 0
 

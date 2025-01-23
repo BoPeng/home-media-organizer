@@ -161,6 +161,15 @@ class MediaFile:
         self.ext = os.path.splitext(self.filename)[-1]
         self.date: str | None = None
 
+    @property
+    def exif(self) -> Dict[str, str]:
+        try:
+            with ExifToolHelper() as e:
+                metadata = e.get_metadata(self.fullname)[0]
+            return metadata
+        except Exception:
+            return {}
+
     def get_date(self: "MediaFile") -> str:
         if self.date is None:
             funcs = date_func[self.ext]
@@ -351,7 +360,13 @@ class MediaFile:
             if confirmed or get_response(f"Set exif of {self.fullname}"):
                 if logger is not None:
                     logger.info(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
-                e.set_tags([self.fullname], tags=changes)
+                e.set_tags([self.fullname], tags=changes, params=["-P", "-overwrite_original"])
+                exif = self.exif
+                for k, v in changes.items():
+                    if k not in exif or exif[k] != v:
+                        raise ValueError(
+                            f"Failed to set {k} to {v}. Operation might not be supported."
+                        )
 
     # def name_ok(self: "MediaFile") -> bool:
     #     return re.match(r"2\d{7}(_.*)?" + self.ext.lower(), self.filename)

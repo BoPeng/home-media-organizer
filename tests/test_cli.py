@@ -1,13 +1,16 @@
 """Tests for `home_media_organizer`.cli module."""
 
+import os
 import shlex
 import subprocess
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import pytest
+from PIL import Image
 
 import home_media_organizer
 from home_media_organizer import cli
+from home_media_organizer.media_file import MediaFile
 
 
 @pytest.mark.parametrize(
@@ -30,7 +33,7 @@ def test_main_app(options: List[str], expected: str) -> None:
 @pytest.mark.parametrize(
     "command, options",
     [
-        ("list file1 file2", {"items": ["file1", "file2"]}),
+        ("list file1 file2", {"items": ["file1", "file2"], "command": "list"}),
     ],
 )
 def test_parse_args(command: str, options: Dict) -> None:
@@ -39,3 +42,254 @@ def test_parse_args(command: str, options: Dict) -> None:
     # combine test into in one assert
     for k, v in options.items():
         assert getattr(args, k) == v
+
+
+@pytest.fixture(scope="session")
+def config_file(tmp_path_factory: Callable) -> str:
+    fn = tmp_path_factory.mktemp("config") / "test.toml"
+    with open(fn, "w") as f:
+        f.write(
+            """\
+[rename]
+format = "%Y%m%d_%H%M%S"
+"""
+        )
+    return str(fn)
+
+
+@pytest.fixture(scope="session")
+def image_file(tmp_path_factory: Callable) -> Callable:
+    def _generate_image_file(
+        filename: str = "test.jpg", exif: Dict[str, str] | None = None, valid: bool = True
+    ) -> str:
+        fn = tmp_path_factory.mktemp("image") / filename
+        if valid:
+            width, height = 100, 100
+            color = (1, 2, 5)
+            image = Image.new("RGB", (width, height), color)
+            image.save(fn, "JPEG")
+        else:
+            with open(fn, "w") as f:
+                f.write("not an image")
+
+        if exif:
+            MediaFile(fn).set_exif(exif, override=True, confirmed=True)
+            for k, v in exif.items():
+                assert MediaFile(fn).exif[k] == v
+        return str(fn)
+
+    return _generate_image_file
+
+
+def test_config(config_file: str) -> None:
+    """Test using --config to assign command line arguments."""
+    args = cli.parse_args(["--config", config_file, "rename", "file1", "file2"])
+    assert args.config == config_file
+    assert args.command == "rename"
+    assert args.items == ["file1", "file2"]
+    assert args.format == "%Y%m%d_%H%M%S"
+
+
+def test_list(image_file: str) -> None:
+    fn = image_file()
+    result = subprocess.run(["hmo", "list", fn], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert os.path.basename(fn) in result.stdout
+
+
+def test_list_with_exif(image_file: str) -> None:
+    """Test --with-exif and --without-exif options."""
+    # list file with exif
+    exif = {"EXIF:DateTimeOriginal": "2022:01:01 12:00:00"}
+    fn = image_file(exif=exif)
+    #
+    result = subprocess.run(
+        ["hmo", "list", fn, "--with-exif", "EXIF:DateTimeOriginal"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert os.path.basename(fn) in result.stdout
+    # list files without exif
+    result = subprocess.run(
+        ["hmo", "list", fn, "--without-exif", "EXIF:DateTimeOriginal"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert os.path.basename(fn) not in result.stdout
+
+
+def test_list_with_file_types(image_file: str) -> None:
+    """Test --file-types option."""
+    # list file with extensions
+    fn = image_file()
+    # list file with extensions
+    result = subprocess.run(
+        ["hmo", "list", fn, "--file-types", "*.jpg"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert os.path.basename(fn) in result.stdout
+    #
+    result = subprocess.run(
+        ["hmo", "list", fn, "--file-types", "*.mp4"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert os.path.basename(fn) not in result.stdout
+
+
+def test_show_exif(image_file: str) -> None:
+    """Test --show-exif option."""
+    exif = {"EXIF:DateTimeOriginal": "2022:01:01 12:00:00"}
+    fn = image_file(exif=exif)
+    #
+    result = subprocess.run(
+        ["hmo", "show-exif", fn, "EXIF:DateTimeOriginal"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert exif["EXIF:DateTimeOriginal"] in result.stdout
+    #
+    # show all exif
+    result = subprocess.run(
+        ["hmo", "show-exif", fn],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert exif["EXIF:DateTimeOriginal"] in result.stdout
+    #
+    # show --format text
+    result = subprocess.run(
+        ["hmo", "show-exif", fn, "--format", "text"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert exif["EXIF:DateTimeOriginal"] in result.stdout
+
+
+def test_set_exif_from_values(image_file: str) -> None:
+    """Test --set-exif option."""
+    fn = image_file()
+    #
+    result = subprocess.run(
+        [
+            "hmo",
+            "set-exif",
+            fn,
+            "--values",
+            "EXIF:DateTimeOriginal=2022:01:01 12:00:00",
+            "--yes",
+            "--overwrite",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2022:01:01 12:00:00"
+    #
+    # set a different value, with --confirm, and value will not be changed
+    result = subprocess.run(
+        ["hmo", "set-exif", fn, "--values", "EXIF:DateTimeOriginal=2020:01:01 12:00:01", "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2022:01:01 12:00:00"
+    #
+    # now with --overwrite, the exif value should be changed
+    result = subprocess.run(
+        [
+            "hmo",
+            "set-exif",
+            fn,
+            "--values",
+            "EXIF:DateTimeOriginal=2020:01:01 12:00:01",
+            "--yes",
+            "--overwrite",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2020:01:01 12:00:01"
+
+
+@pytest.mark.parametrize(
+    "filename,pattern",
+    [
+        ("20121012_120102.jpg", "%Y%m%d_%H%M%S"),
+        ("va2012_10_12.120102-some.jpg", "va%Y_%m_%d.%H%M%S"),
+    ],
+)
+def test_set_exif_from_file(image_file: str, filename: str, pattern: str) -> None:
+    """Test --set-exif option."""
+    fn = image_file(filename=filename)
+    #
+    result = subprocess.run(
+        ["hmo", "set-exif", fn, "--from-filename", pattern, "--overwrite", "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2012:10:12 12:01:02"
+
+
+def test_set_exif_from_date(image_file: str) -> None:
+    """Test --set-exif option."""
+    fn = image_file()
+    #
+    result = subprocess.run(
+        ["hmo", "set-exif", fn, "--from-date", "20121012_120102", "--overwrite", "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2012:10:12 12:01:02"
+
+    #
+    # set a different value, without --overwrite, and value will not be changed
+    result = subprocess.run(
+        ["hmo", "set-exif", fn, "--from-date", "20101012_120102", "--yes"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2012:10:12 12:01:02"
+    #
+    # this time with --overwrite
+    result = subprocess.run(
+        ["hmo", "set-exif", fn, "--from-date", "20101012_120102", "--yes", "--overwrite"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2010:10:12 12:01:02"
+
+
+def test_set_exif_from_date_with_keys(image_file: str) -> None:
+    """Test --set-exif option."""
+    fn = image_file()
+    #
+    result = subprocess.run(
+        [
+            "hmo",
+            "set-exif",
+            fn,
+            "--from-date",
+            "20141012_120102",
+            "--keys",
+            "EXIF:DateTimeOriginal",
+            "--yes",
+            "--overwrite",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    # this is not changed
+    assert MediaFile(fn).exif["EXIF:DateTimeOriginal"] == "2014:10:12 12:01:02"
