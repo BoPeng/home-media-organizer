@@ -53,6 +53,9 @@ jobs:
           pip install poetry==1.8.5
           poetry config virtualenvs.in-project true
 
+      - name: Use Exiftool
+        uses: woss/exiftool-action@v12.87
+
       - name: Run mypy with nox
         shell: bash
         run: nox --force-color -s mypy-${{ matrix.python-version }}
