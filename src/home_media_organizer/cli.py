@@ -49,11 +49,11 @@ def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
 
 
 def rename_file(
-    item: str, filename_format: str, confirmed: bool, logger: logging.Logger | None
+    item: str, filename_format: str, suffix: str, confirmed: bool, logger: logging.Logger | None
 ) -> None:
     m = MediaFile(item)
     # logger.info(f"Processing [blue]{item}[/blue]")
-    m.rename(filename_format=filename_format, confirmed=confirmed, logger=logger)
+    m.rename(filename_format=filename_format, suffix=suffix, confirmed=confirmed, logger=logger)
 
 
 def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
@@ -62,15 +62,15 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
     if args.confirmed:
         process_with_queue(
             args,
-            lambda x, filename_format=args.format, logger=logger: rename_file(
-                x, filename_format, True, logger
+            lambda x, filename_format=args.format, suffix=args.suffix, logger=logger: rename_file(
+                x, filename_format, suffix, True, logger
             ),
         )
     else:
         for item in iter_files(args):
             if logger is not None:
                 logger.info(f"Processing [blue]{item}[/blue]")
-            rename_file(item, args.format, args.confirmed, logger)
+            rename_file(item, args.format, args.suffix, args.confirmed, logger)
 
 
 def check_media_file(
@@ -365,6 +365,10 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         "--format",
         help="Format of the filename. This option is usually set through configuration file.",
     )
+    parser_rename.add_argument(
+        "--suffix",
+        help="A string that will be appended to filename (before file extension).",
+    )
     parser_rename.set_defaults(func=rename_files, command="rename")
     #
     # dedup: remove duplicated files
@@ -536,7 +540,11 @@ def app(arg_list: Optional[List[str]] = None) -> int:
 
     logger = logging.getLogger(args.command)
     # calling the associated functions
-    args.func(args, logger)
+    try:
+        args.func(args, logger)
+    except KeyboardInterrupt:
+        logger.info("Exiting...")
+        return 130
     return 0
 
 

@@ -219,8 +219,10 @@ class MediaFile:
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
         return filedate.strftime(filename_format)
 
-    def intended_name(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
-        return self.intended_prefix(filename_format=filename_format) + self.ext.lower()
+    def intended_name(
+        self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", suffix: str = ""
+    ) -> str:
+        return self.intended_prefix(filename_format=filename_format) + suffix + self.ext.lower()
 
     def intended_path(
         self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
@@ -380,13 +382,20 @@ class MediaFile:
     def rename(
         self: "MediaFile",
         filename_format: str = "%Y%m%d_%H%M%S",
+        suffix: str = "",
         confirmed: bool = False,
         logger: Logger | None = None,
     ) -> None:
+        intended_name = self.intended_name(filename_format=filename_format, suffix=suffix)
         # allow the name to be xxxxxx_xxxxx-someotherstuff
-        if self.filename.startswith(self.intended_prefix(filename_format=filename_format)):
+        if self.filename == intended_name:
             return
-        intended_name = self.intended_name(filename_format=filename_format)
+        elif self.filename.startswith(self.intended_prefix(filename_format=filename_format)):
+            if logger is not None:
+                logger.info(
+                    f"File [blue]{self.filename}[/blue] already has the intended date prefix."
+                )
+            return
 
         try:
             for i in range(10):
