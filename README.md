@@ -21,23 +21,28 @@ A versatile tool to fix, organize, and maintain your home media library.
 - Documentation: <https://home-media-organizer.readthedocs.io>
 - Free software: MIT
 
-## Features
+- [Installation](#installation)
+- [How to use this tool](#how-to-use-this-tool)
+  - [Assumptions](#assumptions)
+  - [Configuration file](#configuration-file)
+  - [`hmo-list`: List all or selected media files](#hmo-list-list-all-or-selected-media-files)
+  - [`hmo show-exif`: Show EXIF information of one of more files](#hmo-show-exif-show-exif-information-of-one-of-more-files)
+  - [`hmo set-exif`: Set exif metadata to media files](#hmo-set-exif-set-exif-metadata-to-media-files)
+  - [`hmo shift-exif`: Shift all dates by certain dates](#hmo-shift-exif-shift-all-dates-by-certain-dates)
+  - [`hmo validate`: Identify corrupted JPEG files](#hmo-validate-identify-corrupted-jpeg-files)
+  - [`hmo dedup` Remove duplicated files](#hmo-dedup-remove-duplicated-files)
+  - [`hmo rename`: Standardize filenames](#hmo-rename-standardize-filenames)
+  - [`hmo organize`: Organize media files](#hmo-organize-organize-media-files)
+  - [`hmo cleanup`: Clean up library](#hmo-cleanup-clean-up-library)
+- [How to get help](#how-to-get-help)
+- [Special Notes](#special-notes)
+  - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
+- [More examples](#more-examples)
+  - [Scenario one: video files with correct filename but missing EXIF metadata](#scenario-one-video-files-with-correct-filename-but-missing-exif-metadata)
+- [TODO](#todo)
+- [Credits](#credits)
 
-I have been using a small Python script to help organize my home media collection for the past ten years. Over time, the script has grown longer and more complicated, so I decided to modernize it, make it a proper Python module, put it on GitHub for easier maintenance, and release it on PyPI so that more people can benefit from it.
-
-This tool can
-
-- `list`: List media files, optionally by file types and with/without certain EXIF tags.
-- `show-exif`: Show all or selected EXIF metadata of one or more files.
-- `set-exif`: Set EXIF metadata of media files.
-- `shift-exif`: Shift the `*Date` meta information of EXIF data by specified years, months, days, etc.
-- `dedup`: Identify duplicate files and remove extra copies.
-- `validate`: Locate and potentially remove corrupted JPEG files.
-- `rename`: Rename files according to datetime information extracted.
-- `organize`: Put files under directories such as `MyLibrary/Year/Month/Vacation`.
-- `cleanup`: Clean up destination directories and remove common artifact files, such as `*.LRC` and `*.THM` files from GoPro.
-
-## Quickstart
+## Installation
 
 1. Install [exiftool](https://exiftool.org/install.html). This is the essential tool to read and write EXIF information.
 
@@ -57,26 +62,19 @@ This tool can
 
 ## How to use this tool
 
-### Overall assumptions
+### Assumptions
 
-The following is just how I would like to organize my home photos and videos. This tool can support the other methods but obviously the following layout is best supported.
+HMO dose not assume any particular way for you to organize your media files. Its operation is however largely based on date and time of the photos and videos. It goes great a long way to determine datetime information from EXIF information, and from filenames if no EXIF is unavailable. It then provides rules for you to rename and organize the file, according to patterns based on datetime.
 
-The following is just how I like to organize my home photos and videos. This tool can support other methods, but the following layout is best supported.
+The pattern for file and directory names are based on [Python datetime module](https://docs.python.org/3/library/datetime.html). For example,
 
-1. Files are organized by `YEAR/YEAR-MONTH-ALBUM/` where:
+- A directory structure specified by `hmo organize --dir-pattern=%Y/%b` tries to organize albums by `YEAR/MONTH-ALBUM/` like `2020/Jan`, `2020/Feb`, `2020/Feb-vacation` etc.
 
-   - `YEAR` is the four-digit year number.
-   - `MONTH` is usually `01`, `02`, etc., but you can use other formats.
-   - `ALBUM` is **optional**; by default, all files from the same month are in the same directory.
+- A directory structure specified by `hmo organize --dir-pattern=%Y/%Y-%m` tries to organize albums by `YEAR/YEAR-MONTH-ALBUM/` such as `2020/2020-01`, `2020/2020-02` etc. This structure has the advantage that all "albums" have unique names.
 
-2. Files are named by `YYYYMMDD_HHMMSS-COMMENT.EXT` where
+- With option `--album-sep=/` the albums can be put under the `dir-pattern` to create directory structure such as `2020/2020-02/Vacation`.
 
-   - `YYYYNNDD` is year, month, day
-   - `HHMMSS` is hour, minute, second
-   - `COMMENT` is optional so most files should looks like `YYYYMMDD_HHMMSS.EXT`.
-
-   This is the filename format used by many cameras and camcorders, which allows you to use files dumped from cameras
-   without having to rename them. and usually matches. You can optionally add some other information to the filename.
+- With option `hmo rename --format %Y%m%d_%H%M%S` will rename files to format such as `20200312_100203.jpg`. This is the format for many phones and cameras.
 
 ### Configuration file
 
@@ -88,29 +86,42 @@ HMO recognizes
 - `./.home-media-organizer.toml`
 - And any configuration file specified with option `--config`
 
-The format of the configuration is [TOML](https://toml.io/en/), and you basically can list parameters as
+The format of the configuration is [TOML](https://toml.io/en/), and a typical configuration file looks like:
 
 ```toml
+[rename]
+format = '%Y%m%d_%H%M%S'
+
+[organize]
+media-root = '/Volumes/Public/MyPictures'
+dir-pattern = '%Y/%Y-%m'
+album-sep = '-'
+
 [cleanup]
 file_types = [
-  "*.MOI",
-  "*.PGI",
-  ".LRC",
-  "*.THM",
-  "Default.PLS",
-  ".picasa*.ini",
-  "Thumbs.db",
-  "*.ini",
-  "*.bat",
-  "autprint*"
+    "*.MOI",
+    "*.PGI",
+    ".LRC",
+    "*.THM",
+    "Default.PLS",
+    ".picasa*.ini",
+    "Thumbs.db",
+    "*.ini",
+    "*.bat",
+    "autprint*"
   ]
 ```
 
-Any parameters can be listed and will be used as if they are specified via command line, although you can override them via command line options.
+The entries and values in this configuration file correspond to subcommand and options of `hmo`. You can learn more about these parameters with command like
+
+```
+hmo -h
+hmo rename -h
+```
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
 
-### List all or selected media files
+### `hmo-list`: List all or selected media files
 
 Assuming `2000` is the folder that you keep all your old photos and videos from year 2000,
 
@@ -133,7 +144,7 @@ hmo list 2009 --with-exif QuickTime:AudioFormat
 hmo list 2009 --without-exif '*Date'
 ```
 
-### Show EXIF information of one of more files
+### `hmo show-exif`: Show EXIF information of one of more files
 
 ```sh
 # output in colored JSON format
@@ -166,7 +177,7 @@ The last command can have output like
 }
 ```
 
-### Set exif metadata to media files
+### `hmo set-exif`: Set exif metadata to media files
 
 Some media files do not come with EXIF data. Perhaps they are not generated by a camera, or the photos or videos have been modified and lost their original EXIF information. This is usually not a big deal since you can manually put them into the appropriate folder or album.
 
@@ -214,7 +225,7 @@ Here we allow `hom set-exif` to read key=value pairs from standard input
 
 **NOTE**: Please see the notes regarding `File:FileModifyDate` if you encounter files without proper EXIF date information and cannot be modified by exiftool.
 
-### Shift all dates by certain dates
+### `hmo shift-exif`: Shift all dates by certain dates
 
 Old pictures often have incorrect EXIF dates because you forgot to set the correct dates on your camera. The date-related EXIF information is there but could be years off from the actual date. To fix this, you can use the EXIF tool to correct it.
 
@@ -274,7 +285,7 @@ hmo show-exif 2020/Jul/20240422_023929.mp4 --keys '*Date'
 }
 ```
 
-### Identify corrupted JPEG files
+### `hmo validate`: Identify corrupted JPEG files
 
 Unfortunately, due to various reasons, media files stored on CDs, DVDs, thumb drives, and even hard drives can become corrupted. These corrupted files make it difficult to navigate and can cause trouble with programs such as PLEX.
 
@@ -292,7 +303,7 @@ hmo validate 2014 --remove --yes --file-types '*.jpg'
 
 **NOTE**: `bmo validate` caches the result of file validation so it will be pretty fast to repeat the command with `--remove --yes`. If you do not want to use the cache, for example after you restored the file from backup, you can invalidate the cache with option `--no-cache`.
 
-### Remove duplicated files
+### `hmo dedup` Remove duplicated files
 
 There can be multiple copies of the same file, which may be in different folders with different filenames. This command uses file content to determine if files are identical, and if so, removes extra copies.
 
@@ -302,7 +313,7 @@ The default behavior is to keep only the copy with the longest path name, likely
 hmo dedup 2000 --yes
 ```
 
-## Standardize filenames
+### `hmo rename`: Standardize filenames
 
 It is not absolutely necessary, but I prefer to keep files with standardized names to make it easier to sort files.
 
@@ -326,7 +337,7 @@ format = "%Y%m%d_%H%M%S"
 
 Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
 
-## Organize media files
+### `hmo organize`: Organize media files
 
 Once you have obtained a list of files, with proper names, it makes sense to send files to their respective folder such as `2010/July`. The command
 
@@ -352,7 +363,7 @@ dir-pattern = '%Y/%Y-%m'
 album-sep = '-'
 ```
 
-### Clean up library
+### `hmo cleanup`: Clean up library
 
 Finally, command
 
@@ -438,8 +449,8 @@ hmo set-exif 2003 --without-exif '*Date' --from-filename '%Y%m%d_%H%M%S' --keys 
 
 ## TODO
 
-- Add tests
 - Improve data detection from media files to handle more types of medias.
+- `hmo backup` and `hmo restore` to backup lirary to other (cloud) storages.
 - Add a `--copy` mode to make sure that the source files will not be changed or moved during `hmo rename` or `hme organize`.
 - Support for music and movies?
 
