@@ -165,8 +165,7 @@ class MediaFile:
     def exif(self) -> Dict[str, str]:
         try:
             with ExifToolHelper() as e:
-                metadata = e.get_metadata(self.fullname)[0]
-            return metadata
+                return e.get_metadata([self.fullname])[0] or {}
         except Exception:
             return {}
 
@@ -223,11 +222,13 @@ class MediaFile:
     def intended_name(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
         return self.intended_prefix(filename_format=filename_format) + self.ext.lower()
 
-    def intended_path(self: "MediaFile", root: str, dir_pattern: str, album: str) -> str:
+    def intended_path(
+        self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
+    ) -> str:
         date = self.get_date()
         filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
-        subdir = filedate.strftime(dir_pattern)
-        return os.path.join(root, subdir, album or "")
+        subdir = filedate.strftime(dir_pattern if not album else dir_pattern + album_sep + album)
+        return os.path.join(root, subdir)
 
     def shift_exif(
         self: "MediaFile",
@@ -327,7 +328,8 @@ class MediaFile:
             changes = {}
             for k, v in values.items():
                 if k in metadata and not override and not k.startswith("File:"):
-                    rich.print(f"[magenta]Ignore existing {k} = {metadata[k]}[/magenta]")
+                    if logger is not None:
+                        logger.info(f"[magenta]Ignore existing {k} = {metadata[k]}[/magenta]")
                     continue
                 if k == "File:FileModifyDate":
                     if confirmed or get_response(
@@ -409,7 +411,9 @@ class MediaFile:
                         # switch itself to new file
                         break
                     continue
-                if confirmed or get_response(f"Rename {self.fullname} to {new_file}"):
+                if confirmed or get_response(
+                    f"Rename [blue]{self.fullname}[/blue] to [blue]{os.path.basename(new_file)}[/blue]"
+                ):
                     if logger is not None:
                         logger.info(
                             f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
@@ -428,10 +432,11 @@ class MediaFile:
         media_root: str,
         dir_pattern: str,
         album: str = "",
+        album_sep: str = "-",
         confirmed: bool = False,
         logger: Logger | None = None,
     ) -> None:
-        intended_path = self.intended_path(media_root, dir_pattern, album)
+        intended_path = self.intended_path(media_root, dir_pattern, album, album_sep)
         if self.fullname.startswith(intended_path):
             return
         if confirmed or get_response(
@@ -449,7 +454,8 @@ class MediaFile:
                     if os.path.isfile(new_file):
                         if filecmp.cmp(self.fullname, new_file, shallow=False):
                             os.remove(self.fullname)
-                            print(f"Remove duplicated file {self.fullname}")
+                            if logger is not None:
+                                logger.info(f"Remove duplicated file {self.fullname}")
                             return
                         continue
 

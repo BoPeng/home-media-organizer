@@ -57,6 +57,8 @@ def rename_file(
 
 
 def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    if not args.format:
+        raise ValueError("Option --format is required.")
     if args.confirmed:
         process_with_queue(
             args,
@@ -152,12 +154,19 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
 
 
 def organize_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    for option in ("media_root", "dir_pattern"):
+        if not getattr(args, option):
+            raise ValueError(
+                f"Option --{option} is required. Please specify them either from command line or in your configuration file."
+            )
+
     for item in iter_files(args):
         m = MediaFile(item)
         m.move(
             media_root=args.media_root,
             dir_pattern=args.dir_pattern,
             album=args.album,
+            album_sep=args.album_sep,
             confirmed=args.confirmed,
             logger=logger,
         )
@@ -354,7 +363,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_rename.add_argument(
         "--format",
-        help="Format of the filename.",
+        help="Format of the filename. This option is usually set through configuration file.",
     )
     parser_rename.set_defaults(func=rename_files, command="rename")
     #
@@ -383,7 +392,6 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_organize.add_argument(
         "--media-root",
-        default="/Volumes/Public/MyPictures",
         help="Destination folder, which should be the root of all photos.",
     )
     parser_organize.add_argument(
@@ -393,6 +401,12 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser_organize.add_argument(
         "--album",
         help="Album name for the photo, if need to further organize the media files by albums.",
+    )
+    parser_organize.add_argument(
+        "--album-sep",
+        default="-",
+        help="""How to append album name to directory name. Default
+            to "-" for directory structure like 2015-10-Vacation.""",
     )
     parser_organize.set_defaults(func=organize_files, command="organize")
     #
@@ -498,6 +512,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     # assign config to args
     if args.command in config:
         for k, v in config[args.command].items():
+            k = k.replace("-", "_")
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)

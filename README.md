@@ -304,24 +304,24 @@ hmo dedup 2000 --yes
 
 ## Standardize filenames
 
-It is not absolutely necessary, but I prefer to keep files with standardized names to make it easier to sort files. The default filename in HMO is `%Y%m%d_%H%M%S.ext` , which has the format of `20000729_123929.mp4`.
+It is not absolutely necessary, but I prefer to keep files with standardized names to make it easier to sort files.
 
-The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file to the standardized format.
-
-Because `%Y%m%d_%H%H%Sxxxxxx.ext` is also acceptable, it does not attempt to rename a file if the first part of the filename contains the correct date information.
+The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file according to specified format.
+For example, `--format %Y%m%d_%H%M%S` will format files to for example `20010422_041817.mpg`.
 
 For example
 
 ```sh
-hmo rename 2001/Apr/22BealVillage/video-2001-04-22_041817.mpg
+hmo rename 2001/Apr/22BealVillage/video-2001-04-22_041817.mpg --format %Y%m%d_%H%M%S`
 ```
 
 will attempt to rename to file to `20010422_041817.mpg` (remove `video-`).
 
-If you prefer another format, you can use the `--format` option
+Because the `--format` format needs to be kept consistent across all your library files, this option is usually specified in `~/.home-media-organier/config.toml` as
 
-```sh
-hmo rename 2001/Apr/22BealVillage/video-2001-04-22_041817.mpg --format '%Y-%m-%d_%H%M-vacation'
+```toml
+[rename]
+format = "%Y%m%d_%H%M%S"
 ```
 
 Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
@@ -331,18 +331,26 @@ Please refer to the [Python datetime module](https://docs.python.org/3/library/d
 Once you have obtained a list of files, with proper names, it makes sense to send files to their respective folder such as `2010/July`. The command
 
 ```sh
-hmo organize new_files --dest /path/to/my/Library
+hmo organize new_files --media-root /path/to/my/Library --dir-pattern %Y/%Y-%m
 ```
 
-will move all files to folders such as `/path/to/my/Library/2010/Jul`.
+will move all files to folders such as `/path/to/my/Library/2010/2010-10`.
 If this batch of data should be put under its own album, you can add option
 
 ```sh
-hmo organize new_files --dest /path/to/my/Library --album vacation
+hmo organize new_files --dest /path/to/my/Library --dir-pattern %Y/%Y-%m --album vacation
 ```
 
-The files will be put under `/path/to/my/Library/2010/Jul/vacation`. If you prefer another type of folder structure, you can use option such as
-`--dir-pattern '%Y-%m'` for command `hmo organize`.
+The files will be put under `/path/to/my/Library/2010/2010-10-vacation`. If you prefer a structure like `2010-10/vacation`, you can set `--album-sep=/` (default to `-`).
+
+Since these options need to be kept consistent for your media library, they are usually kept in the configuration file as
+
+```toml
+[organize]
+media-root = '/path/to/my/Library'
+dir-pattern = '%Y/%Y-%m'
+album-sep = '-'
+```
 
 ### Clean up library
 
