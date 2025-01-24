@@ -67,7 +67,7 @@ def image_file(tmp_path_factory: TempPathFactory) -> Callable:
     def _generate_image_file(
         filename: str = "test.jpg", exif: Dict[str, str] | None = None, valid: bool = True
     ) -> str:
-        fn = tmp_path_factory.mktemp("image") / filename
+        fn = str(tmp_path_factory.mktemp("image") / filename)
         if valid:
             width, height = 100, 100
             color = (1, 2, 5)
@@ -302,19 +302,22 @@ def test_set_exif_from_date_with_keys(image_file: Callable) -> None:
 
 
 @pytest.mark.parametrize(
-    "pattern,filename",
+    "pattern,suffix,filename",
     [
-        ("%Y%m%d_%H%M%S", "20220101_120000.jpg"),
-        ("%Y_%m_%d.%H_%M_%S", "2022_01_01.12_00_00.jpg"),
+        ("%Y%m%d_%H%M%S", "", "20220101_120000.jpg"),
+        ("%Y%m%d_%H%M%S", "test", "20220101_120000test.jpg"),
+        ("%Y_%m_%d.%H_%M_%S", "", "2022_01_01.12_00_00.jpg"),
     ],
 )
-def test_rename(image_file: Callable, pattern: str, filename: str) -> None:
+def test_rename(image_file: Callable, pattern: str, suffix: str, filename: str) -> None:
     """Test rename command."""
     exif = {"EXIF:DateTimeOriginal": "2022:01:01 12:00:00"}
     fn = image_file(exif=exif)
     #
     result = subprocess.run(
-        ["hmo", "rename", fn, "--format", pattern, "--yes"],
+        ["hmo", "rename", fn, "--format", pattern]
+        + (["--suffix", suffix] if suffix else [])
+        + ["--yes"],
         capture_output=True,
         text=True,
     )

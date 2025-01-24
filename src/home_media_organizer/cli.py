@@ -62,7 +62,7 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
     if args.confirmed:
         process_with_queue(
             args,
-            lambda x, filename_format=args.format, suffix=args.suffix, logger=logger: rename_file(
+            lambda x, filename_format=args.format, suffix=args.suffix or "", logger=logger: rename_file(
                 x, filename_format, suffix, True, logger
             ),
         )
@@ -70,7 +70,7 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
         for item in iter_files(args):
             if logger is not None:
                 logger.info(f"Processing [blue]{item}[/blue]")
-            rename_file(item, args.format, args.suffix, args.confirmed, logger)
+            rename_file(item, args.format, args.suffix or "", args.confirmed, logger)
 
 
 def check_media_file(

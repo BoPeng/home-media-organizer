@@ -320,22 +320,23 @@ hmo dedup 2000 --yes
 It is not absolutely necessary, but I prefer to keep files with standardized names to make it easier to sort files.
 
 The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file according to specified format.
-For example, `--format %Y%m%d_%H%M%S` will format files to for example `20010422_041817.mpg`.
+For example, `--format %Y%m%d_%H%M%S` will format files to for example `20010422_041817.mpg`. An option `--suffix` is provided if you would like to add an suffix to the filename.
 
 For example
 
 ```sh
-hmo rename 2001/Apr/22BealVillage/video-2001-04-22_041817.mpg --format %Y%m%d_%H%M%S`
+hmo rename 2001/video-2001-04-22_041817.mpg --format %Y%m%d_%H%M%S`
 ```
 
 will attempt to rename to file to `20010422_041817.mpg` (remove `video-`).
 
-Because the `--format` format needs to be kept consistent across all your library files, this option is usually specified in `~/.home-media-organier/config.toml` as
+and
 
-```toml
-[rename]
-format = "%Y%m%d_%H%M%S"
+```sh
+hmo rename 201010* --format %Y%m%d_%H%M%S` --suffix=-vacation
 ```
+
+will generate files like `20101005_129493-vacation.jpg`.
 
 Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
 
@@ -356,14 +357,7 @@ hmo organize new_files --dest /path/to/my/Library --dir-pattern %Y/%Y-%m --album
 
 The files will be put under `/path/to/my/Library/2010/2010-10-vacation`. If you prefer a structure like `2010-10/vacation`, you can set `--album-sep=/` (default to `-`).
 
-Since these options need to be kept consistent for your media library, they are usually kept in the configuration file as
-
-```toml
-[organize]
-media-root = '/path/to/my/Library'
-dir-pattern = '%Y/%Y-%m'
-album-sep = '-'
-```
+Since these options need to be kept consistent for your media library, they are usually kept in a configuration file.
 
 ### `hmo cleanup`: Clean up library
 
@@ -451,9 +445,9 @@ hmo set-exif 2003 --without-exif '*Date' --from-filename '%Y%m%d_%H%M%S' --keys 
 
 ## TODO
 
-- Improve data detection from media files to handle more types of medias.
 - `hmo backup` and `hmo restore` to backup lirary to other (cloud) storages.
 - Add a `--copy` mode to make sure that the source files will not be changed or moved during `hmo rename` or `hme organize`.
+- Improve data detection from media files without EXIF information to handle more types of medias.
 - Support for music and movies?
 
 ## Credits
