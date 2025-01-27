@@ -215,10 +215,18 @@ class MediaFile:
         if not date:
             date = os.path.split(os.path.basename(self.fullname))[0]
             date = date.replace(":", "").replace(" ", "_")
-        if filename_format == "%Y%m%d_%H%M%S":
+        try:
+            filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
+            if filedate.year < 1980:
+                raise ValueError(f"Invalid date {date}")
+            return filedate.strftime(filename_format)
+        except Exception:
+            if date:
+                rich.print(f"[red]Invalid date {date}[/red]")
+            else:
+                rich.print("[red]Invalid date[/red]")
+            # do not rename
             return date
-        filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
-        return filedate.strftime(filename_format)
 
     def intended_name(
         self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", suffix: str = ""
