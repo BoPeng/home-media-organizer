@@ -434,7 +434,7 @@ class MediaFile:
                                 f"Removed duplicated file [blue]{os.path.basename(self.fullname)}[/blue]"
                             )
                     return
-                return self.rename(filename_format, confirmed, attempt + 1)
+                return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
 
             if confirmed or get_response(
                 f"Rename [blue]{self.fullname}[/blue] to [blue]{os.path.basename(new_file)}[/blue]"
@@ -445,7 +445,7 @@ class MediaFile:
                         f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
                     )
         except Exception as e:
-            return self.rename(filename_format, confirmed, attempt + 1)
+            return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
 
     def move(
         self: "MediaFile",
@@ -486,7 +486,7 @@ class MediaFile:
                             logger.info(f"Remove duplicated file {self.fullname}")
                         return
                     return self.move(
-                        media_root, dir_pattern, album, confirmed, logger, attempt + 1
+                        media_root, dir_pattern, album, album_sep, confirmed, logger, attempt + 1
                     )
 
                 shutil.move(self.fullname, new_file)
@@ -495,4 +495,6 @@ class MediaFile:
                         f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
                     )
             except Exception as e:
-                return self.move(media_root, dir_pattern, album, confirmed, logger, attempt + 1)
+                return self.move(
+                    media_root, dir_pattern, album, album_sep, confirmed, logger, attempt + 1
+                )
