@@ -7,6 +7,7 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from logging import Logger
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import rich
@@ -239,7 +240,7 @@ class MediaFile:
             else:
                 rich.print("[red]Invalid date[/red]")
             return self.dirname
-        return os.path.join(root, subdir)
+        return str(Path(root) / subdir)
 
     def shift_exif(
         self: "MediaFile",

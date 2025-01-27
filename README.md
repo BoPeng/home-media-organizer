@@ -359,6 +359,8 @@ The files will be put under `/path/to/my/Library/2010/2010-10-vacation`. If you 
 
 Since these options need to be kept consistent for your media library, they are usually kept in a configuration file.
 
+**NOTE**: `/` in `--dir-pattern %Y/%Y-%m` works under both Windows and other operating systems.
+
 ### `hmo cleanup`: Clean up library
 
 Finally, command
