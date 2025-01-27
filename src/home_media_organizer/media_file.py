@@ -238,11 +238,9 @@ class MediaFile:
             subdir = filedate.strftime(
                 dir_pattern if not album else dir_pattern + album_sep + album
             )
+            if filedate.year < 1980:
+                raise ValueError(f"Invalid date {date}")
         except Exception:
-            if date:
-                rich.print(f"[red]Invalid date {date}[/red]")
-            else:
-                rich.print("[red]Invalid date[/red]")
             return self.dirname
         return str(Path(root) / subdir)
 
