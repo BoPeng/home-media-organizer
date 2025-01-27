@@ -221,10 +221,6 @@ class MediaFile:
                 raise ValueError(f"Invalid date {date}")
             return filedate.strftime(filename_format)
         except Exception:
-            if date:
-                rich.print(f"[red]Invalid date {date}[/red]")
-            else:
-                rich.print("[red]Invalid date[/red]")
             # do not rename
             return os.path.split(self.filename)[0]
 
