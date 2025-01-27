@@ -228,8 +228,17 @@ class MediaFile:
         self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
     ) -> str:
         date = self.get_date()
-        filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
-        subdir = filedate.strftime(dir_pattern if not album else dir_pattern + album_sep + album)
+        try:
+            filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
+            subdir = filedate.strftime(
+                dir_pattern if not album else dir_pattern + album_sep + album
+            )
+        except Exception:
+            if date:
+                rich.print(f"[red]Invalid date {date}[/red]")
+            else:
+                rich.print("[red]Invalid date[/red]")
+            return self.dirname
         return os.path.join(root, subdir)
 
     def shift_exif(
@@ -385,6 +394,7 @@ class MediaFile:
         suffix: str = "",
         confirmed: bool = False,
         logger: Logger | None = None,
+        attempt: str = 0,
     ) -> None:
         intended_name = self.intended_name(filename_format=filename_format, suffix=suffix)
         # allow the name to be xxxxxx_xxxxx-someotherstuff
@@ -397,44 +407,44 @@ class MediaFile:
                 )
             return
 
-        try:
-            for i in range(10):
-                if i > 0:
-                    n, e = os.path.splitext(intended_name)
-                    nn = f"{n}_{i}{e}"
-                else:
-                    nn = intended_name
-                new_file = os.path.join(self.dirname, nn)
-                if os.path.isfile(new_file):
-                    if os.path.samefile(self.fullname, new_file):
-                        return
-                    if filecmp.cmp(self.fullname, new_file, shallow=False):
-                        if confirmed or get_response(
-                            f"Rename {self.fullname} to an existing file {new_file}"
-                        ):
-                            if logger is not None:
-                                logger.info(
-                                    f"Removed duplicated file [blue]{os.path.basename(self.fullname)}[/blue]"
-                                )
-                            os.remove(self.fullname)
-                        # switch itself to new file
-                        break
-                    continue
-                if confirmed or get_response(
-                    f"Rename [blue]{self.fullname}[/blue] to [blue]{os.path.basename(new_file)}[/blue]"
-                ):
-                    if logger is not None:
-                        logger.info(
-                            f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
-                        )
-                    os.rename(self.fullname, new_file)
-                break
-            #
-            self.fullname = new_file
-            self.filename = nn
-        except Exception as e:
+        if attempt > 10:
             if logger is not None:
-                logger.error(f"Failed to rename {self.fullname}: {e}")
+                logger.info("Failed to rename after 10 attempts. There must be something wrong.")
+            return
+        elif attempt > 0:
+            n, e = os.path.splitext(intended_name)
+            nn = f"{n}_{attempt}{e}"
+        else:
+            nn = intended_name
+
+        new_file = os.path.join(self.dirname, nn)
+
+        try:
+            if os.path.isfile(new_file):
+                if os.path.samefile(self.fullname, new_file):
+                    return
+                if filecmp.cmp(self.fullname, new_file, shallow=False):
+                    if confirmed or get_response(
+                        f"Rename {self.fullname} to an existing file {new_file}"
+                    ):
+                        os.remove(self.fullname)
+                        if logger is not None:
+                            logger.info(
+                                f"Removed duplicated file [blue]{os.path.basename(self.fullname)}[/blue]"
+                            )
+                    return
+                return self.rename(filename_format, confirmed, attempt + 1)
+
+            if confirmed or get_response(
+                f"Rename [blue]{self.fullname}[/blue] to [blue]{os.path.basename(new_file)}[/blue]"
+            ):
+                os.rename(self.fullname, new_file)
+                if logger is not None:
+                    logger.info(
+                        f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                    )
+        except Exception as e:
+            return self.rename(filename_format, confirmed, attempt + 1)
 
     def move(
         self: "MediaFile",
@@ -444,37 +454,44 @@ class MediaFile:
         album_sep: str = "-",
         confirmed: bool = False,
         logger: Logger | None = None,
+        attempt: int = 0,
     ) -> None:
         intended_path = self.intended_path(media_root, dir_pattern, album, album_sep)
         if self.fullname.startswith(intended_path):
             return
+
+        if attempt > 10:
+            if logger is not None:
+                logger.info("Failed to rename after 10 attempts. There must be something wrong.")
+            return
+        elif attempt > 0:
+            n, e = os.path.splitext(self.filename)
+            nn = f"{n}_{attempt}{e}"
+        else:
+            nn = self.filename
+
+        new_file = os.path.join(intended_path, nn)
+
         if confirmed or get_response(
             f"Move [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
         ):
             os.makedirs(intended_path, exist_ok=True)
-            for i in range(10):
-                try:
-                    if i > 0:
-                        n, e = os.path.splitext(self.filename)
-                        nn = f"{n}_{i}{e}"
-                    else:
-                        nn = self.filename
-                    new_file = os.path.join(intended_path, nn)
-                    if os.path.isfile(new_file):
-                        if filecmp.cmp(self.fullname, new_file, shallow=False):
-                            os.remove(self.fullname)
-                            if logger is not None:
-                                logger.info(f"Remove duplicated file {self.fullname}")
-                            return
-                        continue
 
-                    shutil.move(self.fullname, new_file)
-                    if logger is not None:
-                        logger.info(
-                            f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
-                        )
-                    break
-                except Exception as e:
-                    if logger is not None:
-                        logger.error(f"Failed to move {self.fullname}: {e}")
-                    raise
+            try:
+                if os.path.isfile(new_file):
+                    if filecmp.cmp(self.fullname, new_file, shallow=False):
+                        os.remove(self.fullname)
+                        if logger is not None:
+                            logger.info(f"Remove duplicated file {self.fullname}")
+                        return
+                    return self.move(
+                        media_root, dir_pattern, album, confirmed, logger, attempt + 1
+                    )
+
+                shutil.move(self.fullname, new_file)
+                if logger is not None:
+                    logger.info(
+                        f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                    )
+            except Exception as e:
+                return self.move(media_root, dir_pattern, album, confirmed, logger, attempt + 1)
