@@ -213,7 +213,7 @@ class MediaFile:
     def intended_prefix(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
         date = self.get_date()
         if not date:
-            date = os.path.split(os.path.basename(self.fullname))[0]
+            date = os.path.split(self.filename)[0]
             date = date.replace(":", "").replace(" ", "_")
         try:
             filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
@@ -226,7 +226,7 @@ class MediaFile:
             else:
                 rich.print("[red]Invalid date[/red]")
             # do not rename
-            return date
+            return os.path.split(self.filename)[0]
 
     def intended_name(
         self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", suffix: str = ""
