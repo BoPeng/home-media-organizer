@@ -1,6 +1,7 @@
 import argparse
 import fnmatch
 import os
+import sys
 import threading
 from queue import Queue
 from typing import Any, Callable, Dict, Generator
@@ -56,6 +57,34 @@ def iter_files(args: argparse.Namespace) -> Generator[str, None, None]:
         return match
 
     for item in args.items:
+        # if item is an absolute path, use it directory
+        # if item is an relative path, check current working directory first
+        # if not found, check the search path
+        if os.path.isabs(item):
+            pass
+        elif os.path.exists(item):
+            item = os.path.abspath(item)
+        elif args.search_paths:
+            search_paths = (
+                [args.search_paths] if isinstance(args.search_paths, str) else args.search_paths
+            )
+            for path in search_paths:
+                if os.path.exists(os.path.join(path, item)):
+                    item = os.path.abspath(os.path.join(path, item))
+                    break
+            else:
+                if len(search_paths) == 1:
+                    rich.print(
+                        f"[red]{item} not found in current directory or {search_paths[0]}[/red]"
+                    )
+                else:
+                    rich.print(
+                        f"[red]{item} not found in current directory or any directory under {', '.join(search_paths)}[/red]"
+                    )
+                sys.exit(1)
+        else:
+            rich.print(f"[red]{item} not found in current directory[/red]")
+            sys.exit(1)
         if os.path.isfile(item):
             if not allowed_filetype(item):
                 continue

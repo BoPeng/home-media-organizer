@@ -45,5 +45,5 @@ class Config:
 
     def validate(self) -> None:
         for k in self.config:
-            if k not in self.allowed_commands:
+            if k != "default" and k not in self.allowed_commands:
                 raise ValueError(f"Unknown command {k}")

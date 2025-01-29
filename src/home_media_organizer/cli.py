@@ -262,6 +262,11 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         help="Directories or files to be processed",
     )
     parser.add_argument(
+        "--search-paths",
+        nargs="+",
+        help="""Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.""",
+    )
+    parser.add_argument(
         "--with-exif",
         nargs="*",
         help="""Process only media files with specified exif data, which can be "key=value",
@@ -514,6 +519,12 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     args = parser.parse_args(arg_list)
     config = Config(args.config).config
     # assign config to args
+    if "default" in config:
+        for k, v in config["default"].items():
+            k = k.replace("-", "_")
+            if getattr(args, k, None) is not None:
+                continue
+            setattr(args, k, v)
     if args.command in config:
         for k, v in config[args.command].items():
             k = k.replace("-", "_")

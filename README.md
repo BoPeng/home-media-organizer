@@ -91,11 +91,14 @@ HMO recognizes
 The format of the configuration is [TOML](https://toml.io/en/), and a typical configuration file looks like:
 
 ```toml
+[default]
+search-paths = ['/Volumes/NAS/incoming']
+media-root = '/Volumes/NAS/MyPictures'
+
 [rename]
 format = '%Y%m%d_%H%M%S'
 
 [organize]
-media-root = '/Volumes/Public/MyPictures'
 dir-pattern = '%Y/%Y-%m'
 album-sep = '-'
 
@@ -114,7 +117,7 @@ file_types = [
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`. You can learn more about these parameters with command like
+The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands. You can learn more about these parameters with command like
 
 ```
 hmo -h
@@ -132,7 +135,7 @@ Assuming `2000` is the folder that you keep all your old photos and videos from 
 hmo list 2000
 
 # list multiple directories
-hmo list 200?
+hmo list 200? --search-paths /path/to/storage
 
 # list only certain file types
 hmo list 2000 --file-types '*.mp4'
@@ -145,6 +148,8 @@ hmo list 2009 --with-exif QuickTime:AudioFormat
 # without any Date related EXIF meta data (external File: date is not considered)
 hmo list 2009 --without-exif '*Date'
 ```
+
+Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
 
 ### `hmo show-exif`: Show EXIF information of one of more files
 
