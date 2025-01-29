@@ -4,8 +4,8 @@ import tempfile
 from datetime import datetime
 from typing import Any, Dict
 
-import joblib  # type: ignore
 import rich
+from diskcache import Cache  # type: ignore
 from PIL import Image, UnidentifiedImageError
 from rich.prompt import Prompt
 
@@ -15,18 +15,18 @@ except ImportError:
     ffmpeg = None
 
 cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
-mem = joblib.Memory(cachedir, verbose=0)
+cache = Cache(cachedir, verbose=0)
 
 
-def clear_cache() -> None:
-    mem.clear()
+def clear_cache(tag: str) -> None:
+    cache.evict(tag)
 
 
 def get_response(msg: str) -> bool:
     return Prompt.ask(msg, choices=["y", "n"], default="y") == "y"
 
 
-@mem.cache
+@cache.memoize(tag="validate")
 def jpeg_openable(file_path: str) -> bool:
     try:
         with Image.open(file_path) as img:
@@ -36,7 +36,7 @@ def jpeg_openable(file_path: str) -> bool:
         return False
 
 
-@mem.cache
+@cache.memoize(tag="validate")
 def mpg_playable(file_path: str) -> bool:
     if not ffmpeg:
         rich.print("[red]ffmpeg not installed, skip[/red]")
@@ -55,7 +55,7 @@ def mpg_playable(file_path: str) -> bool:
         return False
 
 
-@mem.cache
+@cache.memoize(tag="dedup")
 def calculate_file_hash(file_path: str) -> str:
     sha_hash = hashlib.sha256()
     with open(file_path, "rb") as f:

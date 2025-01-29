@@ -397,7 +397,7 @@ class MediaFile:
         suffix: str = "",
         confirmed: bool = False,
         logger: Logger | None = None,
-        attempt: str = 0,
+        attempt: int = 0,
     ) -> None:
         intended_name = self.intended_name(filename_format=filename_format, suffix=suffix)
         # allow the name to be xxxxxx_xxxxx-someotherstuff

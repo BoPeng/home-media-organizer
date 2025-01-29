@@ -89,7 +89,7 @@ def check_media_file(
 
 def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
-        clear_cache()
+        clear_cache(tag="validate")
     if args.confirmed or not args.remove:
         process_with_queue(
             args,
@@ -112,7 +112,7 @@ def get_file_md5(filename: str) -> Tuple[str, str]:
 
 def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
-        clear_cache()
+        clear_cache(tag="dedup")
 
     md5_files = defaultdict(list)
     size_files = defaultdict(list)
