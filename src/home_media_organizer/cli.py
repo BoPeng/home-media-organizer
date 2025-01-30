@@ -89,7 +89,7 @@ def check_media_file(
 
 def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
-        clear_cache()
+        clear_cache(tag="validate")
     if args.confirmed or not args.remove:
         process_with_queue(
             args,
@@ -112,7 +112,7 @@ def get_file_md5(filename: str) -> Tuple[str, str]:
 
 def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
-        clear_cache()
+        clear_cache(tag="dedup")
 
     md5_files = defaultdict(list)
     size_files = defaultdict(list)
@@ -260,6 +260,11 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         "items",
         nargs="+",
         help="Directories or files to be processed",
+    )
+    parser.add_argument(
+        "--search-paths",
+        nargs="+",
+        help="""Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.""",
     )
     parser.add_argument(
         "--with-exif",
@@ -514,6 +519,12 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     args = parser.parse_args(arg_list)
     config = Config(args.config).config
     # assign config to args
+    if "default" in config:
+        for k, v in config["default"].items():
+            k = k.replace("-", "_")
+            if getattr(args, k, None) is not None:
+                continue
+            setattr(args, k, v)
     if args.command in config:
         for k, v in config[args.command].items():
             k = k.replace("-", "_")
