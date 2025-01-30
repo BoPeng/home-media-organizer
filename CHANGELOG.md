@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.3]
+## [0.3.4]
+
+- Add option `--search-paths`
+
+## [0.3.4]
 
 - Fix a bug on renaming files
 - Add option `--suffix` to `hmo rename`
