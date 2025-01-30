@@ -154,7 +154,7 @@ def test_show_exif(image_file: Callable) -> None:
     fn = image_file(exif=exif)
     #
     result = subprocess.run(
-        ["hmo", "show-exif", fn, "EXIF:DateTimeOriginal"],
+        ["hmo", "show-exif", fn, "--keys", "EXIF:DateTimeOriginal"],
         capture_output=True,
         text=True,
     )
