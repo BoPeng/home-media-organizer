@@ -55,7 +55,7 @@ def mpg_playable(file_path: str) -> bool:
         return False
 
 
-@cache.memoize(tag="dedup")
+@cache.memoize(tag="signature")
 def calculate_file_hash(file_path: str) -> str:
     sha_hash = hashlib.sha256()
     with open(file_path, "rb") as f:

@@ -33,6 +33,7 @@ Table of Contents:
   - [`hmo shift-exif`: Shift all dates by certain dates](#hmo-shift-exif-shift-all-dates-by-certain-dates)
   - [`hmo validate`: Identify corrupted JPEG files](#hmo-validate-identify-corrupted-jpeg-files)
   - [`hmo dedup` Remove duplicated files](#hmo-dedup-remove-duplicated-files)
+  - [`hmo compare` Compare two sets of files](#hmo-compare-compare-two-sets-of-files)
   - [`hmo rename`: Standardize filenames](#hmo-rename-standardize-filenames)
   - [`hmo organize`: Organize media files](#hmo-organize-organize-media-files)
   - [`hmo cleanup`: Clean up library](#hmo-cleanup-clean-up-library)
@@ -319,6 +320,31 @@ The default behavior is to keep only the copy with the longest path name, likely
 ```sh
 hmo dedup 2000 --yes
 ```
+
+### `hmo compare` Compare two sets of files
+
+The `compare` action compares two sets of files and list their differences.
+
+For example,
+
+```sh
+hmo compare files_or_folders --A-and-B folders
+```
+
+find all files that exists in both folders, and
+
+- `--A-or-B` for files exists in either of them, essentially a superset.
+- `--A-and-B` for files exists in both collections.
+- `--A-only` for files exist only in A
+- `--B-only` for files exist only in B
+
+By default, the operations are performed for file content only so filenames do not matter. This can be changed by option
+
+- `--by` which can be set to either `content` (default) or `filename`.
+
+This option can be used to compare the working copy and backup of your library, compare photos you downloaded from cloud storages such as google photos, and check if all files have been properly organized.
+
+Note that options such as `--file-types` applies to both list of files.
 
 ### `hmo rename`: Standardize filenames
 

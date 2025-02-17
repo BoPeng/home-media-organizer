@@ -4,7 +4,7 @@ import os
 import sys
 import threading
 from queue import Queue
-from typing import Any, Callable, Dict, Generator
+from typing import Any, Callable, Dict, Generator, List
 
 import rich
 from exiftool import ExifToolHelper  # type: ignore
@@ -13,7 +13,9 @@ from tqdm import tqdm  # type: ignore
 from .media_file import date_func
 
 
-def iter_files(args: argparse.Namespace) -> Generator[str, None, None]:
+def iter_files(
+    args: argparse.Namespace, items: List[str] | None = None
+) -> Generator[str, None, None]:
     def allowed_filetype(filename: str) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
@@ -56,7 +58,7 @@ def iter_files(args: argparse.Namespace) -> Generator[str, None, None]:
                     match = False
         return match
 
-    for item in args.items:
+    for item in items or args.items:
         # if item is an absolute path, use it directory
         # if item is an relative path, check current working directory first
         # if not found, check the search path
