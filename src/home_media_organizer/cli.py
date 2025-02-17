@@ -121,14 +121,14 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
     with Pool() as pool:
         # get file size
         for filename, filesize in tqdm(
-            pool.map(get_file_size, iter_files(args)), desc="Checking file size"
+            pool.imap(get_file_size, iter_files(args)), desc="Checking file size"
         ):
             size_files[filesize].append(filename)
         #
         # get md5 for files with the same size
         potential_duplicates = [file for x in size_files.values() if len(x) > 1 for file in x]
         for filename, md5 in tqdm(
-            pool.map(get_file_md5, potential_duplicates),
+            pool.imap(get_file_md5, potential_duplicates),
             desc="Checking file content",
         ):
             md5_files[md5].append(filename)
@@ -180,7 +180,7 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
     with Pool() as pool:
         # get file size
         for filename, md5 in tqdm(
-            pool.map(get_file_md5, iter_files(args, a_files)), desc="Checking A file signature"
+            pool.imap(get_file_md5, iter_files(args, a_files)), desc="Checking A file signature"
         ):
             if args.by == CompareBy.CONTENT.value:
                 a_sig_to_files[md5].append(filename)
@@ -190,7 +190,7 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
                 a_file_to_sig[filename] = (md5, os.path.basename(filename))
         #
         for filename, md5 in tqdm(
-            pool.map(get_file_md5, iter_files(args, b_files)), desc="Checking B file signature"
+            pool.imap(get_file_md5, iter_files(args, b_files)), desc="Checking B file signature"
         ):
             if args.by == CompareBy.CONTENT.value:
                 b_sig_to_files[md5].append(filename)
