@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5]
+
+- Add subcommand `compare`
+
 ## [0.3.4]
 
 - Add option `--search-paths`

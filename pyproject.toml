@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "home-media-organizer"
-version = "0.3.4"
+version = "0.3.5"
 description = "A Swiss Army Knife for your home media library."
 authors = ["Bo Peng <ben.bob@gmail.com>"]
 readme = "README.md"
