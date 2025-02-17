@@ -54,7 +54,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Use Exiftool
-        uses: woss/exiftool-action@v13.17
+        uses: woss/exiftool-action@v13.19
 
       - name: Run mypy with nox
         shell: bash
