@@ -392,6 +392,8 @@ Since these options need to be kept consistent for your media library, they are 
 
 **NOTE**: `/` in `--dir-pattern %Y/%Y-%m` works under both Windows and other operating systems.
 
+By default, the `organize` command moves the files to their destination directories. If you would rather keep the original files intact, use option `--operation copy`.
+
 ### `hmo cleanup`: Clean up library
 
 Finally, command

@@ -2,6 +2,7 @@ import hashlib
 import platform
 import tempfile
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict
 
 import rich
@@ -13,6 +14,23 @@ try:
     import ffmpeg  # type: ignore
 except ImportError:
     ffmpeg = None
+
+
+class CompareBy(Enum):
+    CONTENT = "content"
+    NAME_AND_CONTENT = "name_and_content"
+
+
+class CompareOutput(Enum):
+    A = "A"
+    B = "B"
+    BOTH = "Both"
+
+
+class OrganizeOperation(Enum):
+    MOVE = "move"
+    COPY = "copy"
+
 
 cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
 cache = Cache(cachedir, verbose=0)

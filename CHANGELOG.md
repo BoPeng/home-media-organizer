@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.5]
+## [0.3.6]
 
 - Add subcommand `compare`
+- Add option `--operation copy|move` to command `hmo organize`.
 
 ## [0.3.4]
 

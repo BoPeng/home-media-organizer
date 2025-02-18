@@ -5,7 +5,6 @@ import os
 import sys
 from collections import defaultdict
 from datetime import datetime
-from enum import Enum
 from multiprocessing import Pool
 from typing import List, Optional, Tuple
 
@@ -18,6 +17,9 @@ from .config import Config
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
 from .utils import (
+    CompareBy,
+    CompareOutput,
+    OrganizeOperation,
     calculate_file_hash,
     clear_cache,
     extract_date_from_filename,
@@ -154,17 +156,6 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
         )
 
 
-class CompareBy(Enum):
-    CONTENT = "content"
-    NAME_AND_CONTENT = "name_and_content"
-
-
-class CompareOutput(Enum):
-    A = "A"
-    B = "B"
-    BOTH = "Both"
-
-
 def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
         clear_cache(tag="compare")
@@ -261,11 +252,12 @@ def organize_files(args: argparse.Namespace, logger: logging.Logger | None) -> N
 
     for item in iter_files(args):
         m = MediaFile(item)
-        m.move(
+        m.organize(
             media_root=args.media_root,
             dir_pattern=args.dir_pattern,
             album=args.album,
             album_sep=args.album_sep,
+            operation=OrganizeOperation(args.operation),
             confirmed=args.confirmed,
             logger=logger,
         )
@@ -570,6 +562,12 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         default="-",
         help="""How to append album name to directory name. Default
             to "-" for directory structure like 2015-10-Vacation.""",
+    )
+    parser_organize.add_argument(
+        "--operation",
+        default="move",
+        choices=[x.value for x in OrganizeOperation],
+        help="How to organize the files. By default, files will be moved.",
     )
     parser_organize.set_defaults(func=organize_files, command="organize")
     #

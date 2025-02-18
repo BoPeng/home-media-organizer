@@ -14,7 +14,7 @@ import rich
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
-from .utils import get_response
+from .utils import OrganizeOperation, get_response
 
 
 def image_date(filename: str) -> str | None:
@@ -449,12 +449,13 @@ class MediaFile:
         except Exception as e:
             return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
 
-    def move(
+    def organize(
         self: "MediaFile",
         media_root: str,
         dir_pattern: str,
         album: str = "",
         album_sep: str = "-",
+        operation: OrganizeOperation = OrganizeOperation.MOVE,
         confirmed: bool = False,
         logger: Logger | None = None,
         attempt: int = 0,
@@ -476,27 +477,51 @@ class MediaFile:
         new_file = os.path.join(intended_path, nn)
 
         if confirmed or get_response(
-            f"Move [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
+            f"{operation.value.capitalize()} [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
         ):
             os.makedirs(intended_path, exist_ok=True)
 
             try:
                 if os.path.isfile(new_file):
                     if filecmp.cmp(self.fullname, new_file, shallow=False):
-                        os.remove(self.fullname)
-                        if logger is not None:
-                            logger.info(f"Remove duplicated file {self.fullname}")
+                        if operation == OrganizeOperation.MOVE:
+                            os.remove(self.fullname)
+                            if logger is not None:
+                                logger.info(f"Remove duplicated file {self.fullname}")
+                        else:
+                            if logger is not None:
+                                logger.info(f"Retain duplicated file {self.fullname}")
                         return
-                    return self.move(
-                        media_root, dir_pattern, album, album_sep, confirmed, logger, attempt + 1
+                    return self.organize(
+                        media_root,
+                        dir_pattern,
+                        album,
+                        album_sep,
+                        operation,
+                        confirmed,
+                        logger,
+                        attempt + 1,
                     )
-
-                shutil.move(self.fullname, new_file)
-                if logger is not None:
-                    logger.info(
-                        f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
-                    )
+                if operation == OrganizeOperation.COPY:
+                    shutil.copy2(self.fullname, new_file)
+                    if logger is not None:
+                        logger.info(
+                            f"Copied [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                        )
+                else:
+                    shutil.move(self.fullname, new_file)
+                    if logger is not None:
+                        logger.info(
+                            f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                        )
             except Exception as e:
-                return self.move(
-                    media_root, dir_pattern, album, album_sep, confirmed, logger, attempt + 1
+                return self.organize(
+                    media_root,
+                    dir_pattern,
+                    album,
+                    album_sep,
+                    operation,
+                    confirmed,
+                    logger,
+                    attempt + 1,
                 )
