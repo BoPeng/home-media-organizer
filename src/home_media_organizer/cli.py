@@ -9,7 +9,7 @@ from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple
 
 import rich
-from pytorchcv.model_provider import get_model as ptcv_get_model
+from pytorchcv.model_provider import get_model as ptcv_get_model  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
@@ -133,7 +133,7 @@ def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None
 
 
 def classify_image(
-    params: Tuple[str, str, float | None, int | None, List[str] | None, logging.Logger | None]
+    params: Tuple[str, str, float | None, int | None, Tuple[str] | None, logging.Logger | None]
 ) -> Tuple[str, Dict[str, Any]]:
     filename, model, threshold, top_k, tags, logger = params
     m = MediaFile(filename)

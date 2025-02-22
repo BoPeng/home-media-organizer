@@ -8,15 +8,15 @@ import shutil
 from datetime import datetime, timedelta
 from logging import Logger
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import rich
 import torch
 from exiftool import ExifToolHelper  # type: ignore
 from nudenet import NudeDetector  # type: ignore
 from PIL import Image, UnidentifiedImageError
-from pytorchcv.model_provider import get_model as ptcv_get_model
-from torchvision import transforms
+from pytorchcv.model_provider import get_model as ptcv_get_model  # type: ignore
+from torchvision import transforms  # type: ignore
 
 from .utils import OrganizeOperation, get_response
 
@@ -535,7 +535,7 @@ class MediaFile:
         model: str,
         threshold: float | None = None,
         top_k: int | None = None,
-        tags: List[str] | None = None,
+        tags: Tuple[str] | None = None,
         logger: Logger | None = None,
     ) -> Dict[str, Any]:
         try:
