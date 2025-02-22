@@ -1,9 +1,11 @@
 import hashlib
+import os
 import platform
 import tempfile
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import rich
 from diskcache import Cache  # type: ignore
@@ -134,3 +136,49 @@ def merge_dicts(dicts: list) -> dict:
     for dictionary in dicts:
         result = merge(result, dictionary)
     return result
+
+
+@dataclass
+class ManifestItem:
+    filename: str
+    hash_value: str
+    tags: List[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return presentation of tag in manifest file"""
+        return f"{self.filename}\t{self.hash_value}\t{' '.join(self.tags)}"
+
+
+class Manifest:
+    def __init__(self: "Manifest", filename: str) -> None:
+        self.filename = filename
+        self.manifest = {}
+        if os.path.isfile(self.filename):
+            self.load()
+
+    def load(self: "Manifest") -> None:
+        with open(self.filename, "r") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    filename, hash_value, tags = line.split("\t")
+                    self.manifest[filename] = ManifestItem(
+                        filename=filename, hash_value=hash_value, tags=tags.split()
+                    )
+
+    def get_hash(self: "Manifest", filename: str, default: str | None = None) -> str | None:
+        if filename in self.manifest:
+            return self.manifest[filename].hash_value
+        return default
+
+    def set_hash(self: "Manifest", filename: str, signature: str) -> None:
+        if filename in self.manifest:
+            self.manifest[filename].hash_value = signature
+        else:
+            self.manifest[filename] = ManifestItem(
+                filename=filename, hash_value=signature, tags=[]
+            )
+
+    def save(self: "Manifest") -> None:
+        with open(self.filename, "w") as f:
+            for filename in sorted(self.manifest.keys()):
+                f.write(str(self.manifest[filename]) + "\n")

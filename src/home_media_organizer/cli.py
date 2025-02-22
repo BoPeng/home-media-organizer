@@ -19,6 +19,7 @@ from .media_file import MediaFile
 from .utils import (
     CompareBy,
     CompareOutput,
+    Manifest,
     OrganizeOperation,
     calculate_file_hash,
     clear_cache,
@@ -50,6 +51,16 @@ def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files shown.")
+
+
+def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    cnt = 0
+    for item in iter_files(args):
+        m = MediaFile(item)
+        m.set_exif(args.values, override=args.override, confirmed=args.confirmed, logger=logger)
+        cnt += 1
+    if logger is not None:
+        logger.info(f"[blue]{cnt}[/blue] files tagged.")
 
 
 def rename_file(
@@ -91,14 +102,8 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
         clear_cache(tag="validate")
 
     # if there is a manifest file, get the existing file hash
-    manifest = {}
-    if args.manifest and os.path.isfile(args.manifest):
-        with open(args.manifest, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    hash_value, filename = line.split()
-                    manifest[filename] = hash_value
+    if args.manifest:
+        manifest = Manifest(args.manifest)
 
     if args.confirmed or not args.remove:
         with Pool() as pool:
@@ -107,7 +112,7 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
                 pool.imap(check_media_file, iter_files(args)),
                 desc="Validate media",
             ):
-                existing_hash = manifest.get(item, None)
+                existing_hash = manifest.get_hash(item, None)
                 if existing_hash is not None and existing_hash != new_hash:
                     if logger is not None:
                         logger.warning(f"[red][bold]{item}[/bold] is corrupted.[/red]")
@@ -116,11 +121,12 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
                     if logger is not None:
                         logger.info(f"[red][bold]{item}[/bold] is not playable.[/red]")
                     continue
-                manifest[filename] = new_hash
+                if args.manifest:
+                    manifest.set_hash(item, new_hash)
     else:
         for item in iter_files(args):
             _, new_hash, corrupted = check_media_file(item)
-            existing_hash = manifest.get(item, None)
+            existing_hash = manifest.get_hash(item, None)
             if existing_hash is not None and existing_hash != new_hash:
                 if logger is not None:
                     logger.warning(f"[red][bold]{item}[/bold] is corrupted.[/red]")
@@ -137,12 +143,11 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
                         logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
                     os.remove(item)
                 continue
-            manifest[filename] = new_hash
+            if args.manifest:
+                manifest.set_hash(item, new_hash)
     # write manifest
     if args.manifest:
-        with open(args.manifest, "w") as f:
-            for filename in sorted(manifest.keys()):
-                f.write(f"{manifest[filename]} {filename}\n")
+        manifest.save()
 
 
 def get_file_size(filename: str) -> Tuple[str, int]:
@@ -410,6 +415,10 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         """,
     )
     parser.add_argument(
+        "--manifest",
+        help="A manifest file that stores metadata such as file signature and tags.",
+    )
+    parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
     parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
@@ -470,6 +479,22 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_show.set_defaults(func=show_exif, command="show-exif")
     #
+    # tag medias
+    #
+    parser_tag = subparsers.add_parser(
+        "tag",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[parent_parser],
+        help="Tag medias according to fixed tags or some machine learning model",
+    )
+    parser_tag.add_argument("--tags", nargs="*", help="Tag medias")
+    parser_tag.add_argument(
+        "--model",
+        choices=("nudenet",),
+        help="Machine learning model used to tag media.",
+    )
+    parser_tag.set_defaults(func=show_exif, command="tag")
+    #
     # check jpeg
     #
     parser_validate = subparsers.add_parser(
@@ -480,10 +505,6 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_validate.add_argument(
         "--remove", action="store_true", help="If the file if it is corrupted."
-    )
-    parser_validate.add_argument(
-        "--manifest",
-        help="A manifest file that will be used to store and validate hash values of files.",
     )
     parser_validate.add_argument(
         "--no-cache",
