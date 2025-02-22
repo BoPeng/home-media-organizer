@@ -6,8 +6,9 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+from nudenet import NudeDetector
 from rich.console import Console
 from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
@@ -53,11 +54,37 @@ def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         logger.info(f"[blue]{cnt}[/blue] files shown.")
 
 
+def detect_nudity(filename: str) -> Tuple[str, List[Dict]]:
+    try:
+        detector = NudeDetector()
+        return filename, detector.detect(filename)
+    except Exception as e:
+        print(f"Error processing {filename}: {e}")
+        return filename, []
+
+
 def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
     manifest = Manifest(args.manifest)
-    for item in iter_files(args):
-        manifest.add_tags(item, args.tags)
+    if args.tags:
+        for item in iter_files(args):
+            manifest.add_tags(item, args.tags)
+            cnt += 1
+    else:
+        with Pool() as pool:
+            for item, tags in tqdm(
+                pool.imap(detect_nudity, iter_files(args)),
+                desc="Validate media",
+            ):
+                if logger is not None:
+                    for tag in tags:
+                        if tag["score"] < args.threshold:
+                            logger.debug(f"{tag} ignored due to low score.")
+                        else:
+                            logger.debug(f"{tag} assigned to {item}")
+                            logger.info(f"{item} is assigned tag {tag["class"]}.")
+                manifest.add_tags(item, [x["class"] for x in tags if x["score"] > args.threshold])
+
         cnt += 1
     manifest.save()
     if logger is not None:
@@ -491,11 +518,18 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         parents=[parent_parser],
         help="Tag medias according to fixed tags or some machine learning model",
     )
-    parser_tag.add_argument("--tags", nargs="*", help="Tag medias")
-    parser_tag.add_argument(
+    tag_type = parser_tag.add_mutually_exclusive_group(required=True)
+    tag_type.add_argument("--tags", nargs="*", help="Tag medias")
+    tag_type.add_argument(
         "--model",
         choices=("nudenet",),
         help="Machine learning model used to tag media.",
+    )
+    parser_tag.add_argument(
+        "--threshold",
+        type=float,
+        default=0.75,
+        help="Shreshold for the model. Only classifiers with score greater than this value will be assigned.",
     )
     parser_tag.set_defaults(func=tag, command="tag")
     #
