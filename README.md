@@ -95,6 +95,7 @@ The format of the configuration is [TOML](https://toml.io/en/), and a typical co
 [default]
 search-paths = ['/Volumes/NAS/incoming']
 media-root = '/Volumes/NAS/MyPictures'
+manifest = '/Volumes/NAS/MyPictures/manifest.db'
 
 [rename]
 format = '%Y%m%d_%H%M%S'
@@ -148,9 +149,44 @@ hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
 hmo list 2009 --with-exif QuickTime:AudioFormat
 # without any Date related EXIF meta data (external File: date is not considered)
 hmo list 2009 --without-exif '*Date'
+
+# all files with tag VACATION
+hmo list 2009 --with-tags VACATION
+# all files with some tag, but not those with tag VACATION
+hmo list 2009 --with-tags --without-tags VACATION
 ```
 
 Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
+
+### `hmo show-tags`: Show tags assciated with media files
+
+```sh
+hmo show-tags 2009
+```
+
+shows all tags for files under folder 2009.
+
+Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
+
+```sh
+hmo show-tags 2009 --without-tags FACE_FEMALE FACE_MALE
+```
+
+If want to display a subset of tags, use option `--tags`
+
+```
+hmo show-tags 2009 --tags FACE_FEMALE FACE_MALE
+```
+
+Note that option `with-tags` is used to show all files with one of the tags and will show all tags, and option `--tags` displays a subset of tags even if the media file has more tags.
+
+The output will by default in plain `text` format, such as
+
+```
+filename: tag1 tag2
+```
+
+but you can change the format to `json`, `json-details`, `text-details`, where the details version will output meta information related to tags, such as `score` from classifiers.
 
 ### `hmo show-exif`: Show EXIF information of one of more files
 

@@ -305,12 +305,12 @@ class Manifest:
                     """,
                         (tag_name,),
                     )
-                res |= {
-                    row[0]: ManifestItem(
-                        filename=row[0], hash_value=row[1], tags=json.loads(row[2])
-                    )
-                    for row in cursor.fetchall()
-                }
+                    res |= {
+                        row[0]: ManifestItem(
+                            filename=row[0], hash_value=row[1], tags=json.loads(row[2])
+                        )
+                        for row in cursor.fetchall()
+                    }
         if self.logger:
             self.logger.debug(f"Found {len(res)} items with tag {tag_names}")
         self.cache |= res

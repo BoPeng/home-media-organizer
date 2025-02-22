@@ -61,12 +61,12 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         rich.print("[red]No manifest file specified.[/red]")
         sys.exit(1)
     manifest = Manifest(args.manifest, logger=logger)
-    if not args.with_tags:
+    if args.with_tags is None:
         args.with_tags = []
     for item in iter_files(args, manifest=manifest):
         tags = manifest.get_tags(item)
-        if args.keys:
-            tags = {k: v for k, v in tags.items() if k in args.keys}
+        if args.tags:
+            tags = {k: v for k, v in tags.items() if k in args.tags}
         if not tags:
             if logger is not None:
                 logger.debug(f"{item} has no tags.")
@@ -588,11 +588,11 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         parents=[parent_parser],
         help="Show all or selected tags",
     )
-    parser_show_tags.add_argument("--keys", nargs="*", help="Show all or selected tags")
+    parser_show_tags.add_argument("--tags", nargs="*", help="Show all or selected tags")
     parser_show_tags.add_argument(
         "--format",
         choices=("json", "text", "json-details", "text-details"),
-        default="json",
+        default="text",
         help="Show output in json or text format",
     )
     parser_show_tags.set_defaults(func=show_tags, command="show-tags")
