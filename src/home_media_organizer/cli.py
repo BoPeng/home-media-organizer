@@ -23,6 +23,7 @@ from .utils import (
     calculate_file_hash,
     clear_cache,
     extract_date_from_filename,
+    get_file_hash,
     get_response,
     jpeg_openable,
     mpg_playable,
@@ -76,33 +77,72 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
             rename_file(item, args.format, args.suffix or "", args.confirmed, logger)
 
 
-def check_media_file(
-    item: str, remove: bool = False, confirmed: bool = False, logger: logging.Logger | None = None
-) -> None:
-    if (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item)) or (
-        any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)
-    ):
-        if logger is not None:
-            logger.info(f"[red][bold]{item}[/bold] is corrupted.[/red]")
-        if remove and (confirmed or get_response("Remove it?")):
-            if logger is not None:
-                logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
-            os.remove(item)
+def check_media_file(item: str) -> Tuple[str, str, bool]:
+    return (
+        item,
+        calculate_file_hash(item),
+        (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item))
+        or (any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)),
+    )
 
 
 def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
         clear_cache(tag="validate")
+
+    # if there is a manifest file, get the existing file hash
+    manifest = {}
+    if args.manifest and os.path.isfile(args.manifest):
+        with open(args.manifest, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    hash_value, filename = line.split()
+                    manifest[filename] = hash_value
+
     if args.confirmed or not args.remove:
-        process_with_queue(
-            args,
-            lambda x, remove=args.remove, confirmed=args.confirmed, logger=logger: check_media_file(
-                x, remove=remove, confirmed=confirmed, logger=logger
-            ),
-        )
+        with Pool() as pool:
+            # get file size
+            for item, new_hash, corrupted in tqdm(
+                pool.imap(check_media_file, iter_files(args)),
+                desc="Validate media",
+            ):
+                existing_hash = manifest.get(item, None)
+                if existing_hash is not None and existing_hash != new_hash:
+                    if logger is not None:
+                        logger.warning(f"[red][bold]{item}[/bold] is corrupted.[/red]")
+                    continue
+                if corrupted:
+                    if logger is not None:
+                        logger.info(f"[red][bold]{item}[/bold] is not playable.[/red]")
+                    continue
+                manifest[filename] = new_hash
     else:
         for item in iter_files(args):
-            check_media_file(item, remove=args.remove, confirmed=args.confirmed, logger=logger)
+            _, new_hash, corrupted = check_media_file(item)
+            existing_hash = manifest.get(item, None)
+            if existing_hash is not None and existing_hash != new_hash:
+                if logger is not None:
+                    logger.warning(f"[red][bold]{item}[/bold] is corrupted.[/red]")
+                if args.remove and (args.confirmed or get_response("Remove it?")):
+                    if logger is not None:
+                        logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
+                    os.remove(item)
+                continue
+            if corrupted:
+                if logger is not None:
+                    logger.warning(f"[red][bold]{item}[/bold] is not playable.[/red]")
+                if args.remove and (args.confirmed or get_response("Remove it?")):
+                    if logger is not None:
+                        logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
+                    os.remove(item)
+                continue
+            manifest[filename] = new_hash
+    # write manifest
+    if args.manifest:
+        with open(args.manifest, "w") as f:
+            for filename in sorted(manifest.keys()):
+                f.write(f"{manifest[filename]} {filename}\n")
 
 
 def get_file_size(filename: str) -> Tuple[str, int]:
@@ -110,7 +150,7 @@ def get_file_size(filename: str) -> Tuple[str, int]:
 
 
 def get_file_md5(filename: str) -> Tuple[str, str]:
-    return (filename, calculate_file_hash(os.path.abspath(filename)))
+    return (filename, get_file_hash(os.path.abspath(filename)))
 
 
 def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
@@ -440,6 +480,10 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_validate.add_argument(
         "--remove", action="store_true", help="If the file if it is corrupted."
+    )
+    parser_validate.add_argument(
+        "--manifest",
+        help="A manifest file that will be used to store and validate hash values of files.",
     )
     parser_validate.add_argument(
         "--no-cache",

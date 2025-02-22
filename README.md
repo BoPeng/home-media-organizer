@@ -309,7 +309,12 @@ If you would like to remove the corrupted files, likely after you have examined 
 hmo validate 2014 --remove --yes --file-types '*.jpg'
 ```
 
-**NOTE**: `bmo validate` caches the result of file validation so it will be pretty fast to repeat the command with `--remove --yes`. If you do not want to use the cache, for example after you restored the file from backup, you can invalidate the cache with option `--no-cache`.
+If option `--manifest` is specified, it should be a manifest file that contains filenames and their hash values. This command will calculate the hash value of the files and print a warning message if the hash value if different from the value saved in the menifest file.
+
+**NOTE**:
+
+- `bmo validate` caches the result of file validation so it will be pretty fast to repeat the command with `--remove --yes`. If you do not want to use the cache, for example after you restored the file from backup, you can invalidate the cache with option `--no-cache`.
+- You can remove the manifest files and re-run the `hmo validate` command if the manifest file is outdated.
 
 ### `hmo dedup` Remove duplicated files
 
