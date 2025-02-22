@@ -1,8 +1,11 @@
 import hashlib
+import json
 import os
 import platform
+import sqlite3
 import tempfile
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List
@@ -142,76 +145,132 @@ def merge_dicts(dicts: list) -> dict:
 class ManifestItem:
     filename: str
     hash_value: str
-    tags: List[str] = field(default_factory=list)
+    tags: Dict[str, Any]
 
     def __str__(self) -> str:
         """Return presentation of tag in manifest file"""
-        return f"{self.filename}\t{self.hash_value}\t{' '.join(self.tags)}"
+        return f"{self.filename}\t{self.hash_value}\t{' '.join(self.tags.keys())}"
 
 
 class Manifest:
     def __init__(self: "Manifest", filename: str | None) -> None:
-        self.filename = filename
-        self.manifest: Dict[str, ManifestItem] = {}
-        if self.filename and os.path.isfile(self.filename):
-            self.load()
+        self.database_path = filename
+        self._init_db()
 
-    def load(self: "Manifest") -> None:
-        assert self.filename is not None
-        with open(self.filename, "r") as f:
-            for line in f:
-                if line.strip() and not line.startswith("#"):
-                    filename, hash_value, tags = line.split("\t")
-                    self.manifest[filename] = ManifestItem(
-                        filename=filename, hash_value=hash_value, tags=tags.split()
-                    )
+    @contextmanager
+    def _get_connection(self: "Manifest") -> sqlite3.Connection:
+        conn = sqlite3.connect(self.database_path)
+        # Enable JSON support
+        conn.execute("PRAGMA journal_mode=WAL")
+        # Register JSON functions for better JSON handling
+        sqlite3.register_adapter(dict, json.dumps)
+        sqlite3.register_converter("JSON", json.loads)
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def _init_db(self: "Manifest") -> None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS manifest (
+                    filename TEXT PRIMARY KEY,
+                    hash_value TEXT,
+                    tags JSON
+                )
+            """
+            )
+            conn.commit()
+
+    def _get_item(self: "Manifest", filename: str) -> ManifestItem | None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT filename, hash_value, tags FROM manifest WHERE filename = ?",
+                (os.path.abspath(filename),),
+            )
+            row = cursor.fetchone()
+            if row:
+                return ManifestItem(
+                    filename=row[0], hash_value=row[1], tags=row[2] if row[2] else {}
+                )
+        return None
 
     def get_hash(self: "Manifest", filename: str, default: str | None = None) -> str | None:
-        if os.path.abspath(filename) in self.manifest:
-            return self.manifest[os.path.abspath(filename)].hash_value
-        return default
+        item = self._get_item(filename)
+        return item.hash_value if item else default
 
     def set_hash(self: "Manifest", filename: str, signature: str) -> None:
-        if os.path.abspath(filename) in self.manifest:
-            self.manifest[os.path.abspath(filename)].hash_value = signature
-        else:
-            self.manifest[os.path.abspath(filename)] = ManifestItem(
-                filename=os.path.abspath(filename), hash_value=signature, tags=[]
+        abs_path = os.path.abspath(filename)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO manifest (filename, hash_value, tags)
+                VALUES (?, ?, json('{}'))
+                ON CONFLICT(filename) DO UPDATE SET hash_value = ?
+            """,
+                (abs_path, signature, signature),
             )
+            conn.commit()
 
-    def __getitem__(self: "Manifest", filename: str) -> ManifestItem:
-        """Return the manifest item with given filename"""
-        if os.path.abspath(filename) not in self.manifest:
-            self.manifest[os.path.abspath(filename)] = ManifestItem(
-                filename=os.path.abspath(filename), hash_value="", tags=[]
+    def get_tags(self: "Manifest", filename: str) -> Dict[str, Any]:
+        item = self._get_item(filename)
+        return item.tags if item else {}
+
+    def add_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
+        abs_path = os.path.abspath(filename)
+        if isinstance(tags, list):
+            tags = {x: {} for x in tags}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            # Use JSON_PATCH or JSON_INSERT to merge the tags
+            # print(f"add {abs_path=} {tags=}")
+            cursor.execute(
+                """
+                INSERT INTO manifest (filename, hash_value, tags)
+                VALUES (?, '', json(?))
+                ON CONFLICT(filename) DO UPDATE
+                SET tags = json_patch(
+                    COALESCE(tags, json('{}')),
+                    json(?)
+                )
+            """,
+                (abs_path, json.dumps(tags), json.dumps(tags)),
             )
-        return self.manifest[os.path.abspath(filename)]
+            conn.commit()
 
-    def get_tags(self: "Manifest", filename: str) -> List[str]:
-        if os.path.abspath(filename) in self.manifest:
-            return self.manifest[os.path.abspath(filename)].tags
-        return []
-
-    def add_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
-        if os.path.abspath(filename) in self.manifest:
-            self.manifest[os.path.abspath(filename)].tags = list(
-                set(self.manifest[os.path.abspath(filename)].tags + tags)
+    def set_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
+        abs_path = os.path.abspath(filename)
+        if isinstance(tags, list):
+            tags = {x: {} for x in tags}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO manifest (filename, hash_value, tags)
+                VALUES (?, '', json(?))
+                ON CONFLICT(filename) DO UPDATE SET tags = json(?)
+            """,
+                (abs_path, json.dumps(tags), json.dumps(tags)),
             )
-        else:
-            self.manifest[os.path.abspath(filename)] = ManifestItem(
-                filename=os.path.abspath(filename), hash_value="", tags=tags
-            )
+            conn.commit()
 
-    def set_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
-        if os.path.abspath(filename) in self.manifest:
-            self.manifest[os.path.abspath(filename)].tags = tags
-        else:
-            self.manifest[os.path.abspath(filename)] = ManifestItem(
-                filename=os.path.abspath(filename), hash_value="", tags=tags
+    def find_by_tag(self: "Manifest", tag_name: str) -> List[ManifestItem]:
+        """Find all items that have a specific tag"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT filename, hash_value, tags
+                FROM manifest
+                WHERE json_extract(tags, '$.' || ?) IS NOT NULL
+            """,
+                (tag_name,),
             )
-
-    def save(self: "Manifest") -> None:
-        assert self.filename is not None
-        with open(self.filename, "w") as f:
-            for filename in sorted(self.manifest.keys()):
-                f.write(str(self.manifest[filename]) + "\n")
+            return [
+                ManifestItem(filename=row[0], hash_value=row[1], tags=row[2])
+                for row in cursor.fetchall()
+            ]

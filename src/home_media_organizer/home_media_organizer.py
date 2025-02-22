@@ -95,6 +95,8 @@ def iter_files(
                 continue
             if args.with_tags and not any(x in args.with_tags for x in manifest.get_tags(item)):
                 continue
+            if args.without_tags and any(x in args.without_tags for x in manifest.get_tags(item)):
+                continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
                     metadata = {
@@ -123,6 +125,13 @@ def iter_files(
                                 for x in manifest.get_tags(os.path.join(root, f))
                             )
                         )
+                        and (
+                            not args.without_tags
+                            or not any(
+                                x in args.without_tags
+                                for x in manifest.get_tags(os.path.join(root, f))
+                            )
+                        )
                     ]
                     if not qualified_files:
                         continue
@@ -137,6 +146,11 @@ def iter_files(
                     for f in files:
                         if args.with_tags and not any(
                             x in args.with_tags for x in manifest.get_tags(os.path.join(root, f))
+                        ):
+                            continue
+                        if args.without_tags and any(
+                            x in args.without_tags
+                            for x in manifest.get_tags(os.path.join(root, f))
                         ):
                             continue
                         if allowed_filetype(f):
