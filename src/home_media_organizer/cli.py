@@ -418,6 +418,7 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         "--manifest",
         help="A manifest file that stores metadata such as file signature and tags.",
     )
+    parser.add_argument("--tags", help="Files that match one of the specified tags.")
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
@@ -748,6 +749,9 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)
+    # if args if specified, manifest should be specified.
+    if args.tags and not args.manifest:
+        raise ValueError("A manifest file is needed if tags is specified.")
     return args
 
 

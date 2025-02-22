@@ -108,6 +108,7 @@ ignore = [
   "D415",
   "ERA001", # commented code
   "G004",
+  "S101",   # use of assert
   "S108",   # use of /tmp
   "S603",   # subprocess.run security
   "S607",   # subprocess.run with relative path

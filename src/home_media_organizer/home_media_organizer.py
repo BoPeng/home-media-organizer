@@ -11,6 +11,7 @@ from exiftool import ExifToolHelper  # type: ignore
 from tqdm import tqdm  # type: ignore
 
 from .media_file import date_func
+from .utils import Manifest
 
 
 def iter_files(
@@ -58,6 +59,8 @@ def iter_files(
                     match = False
         return match
 
+    manifest: Manifest = Manifest(args.manifest)
+
     for item in items or args.items:
         # if item is an absolute path, use it directory
         # if item is an relative path, check current working directory first
@@ -90,6 +93,8 @@ def iter_files(
         if os.path.isfile(item):
             if not allowed_filetype(item):
                 continue
+            if args.tags and not any(x in args.tags for x in manifest.get_tags(item)):
+                continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
                     metadata = {
@@ -107,7 +112,12 @@ def iter_files(
             for root, _, files in os.walk(item):
                 if args.with_exif or args.without_exif:
                     # get exif atll at the same time
-                    qualified_files = [os.path.join(root, f) for f in files if allowed_filetype(f)]
+                    qualified_files = [
+                        os.path.join(root, f)
+                        for f in files
+                        if allowed_filetype(f)
+                        and (not args.tags or any(x in args.tags for x in manifest.get_tags(f)))
+                    ]
                     if not qualified_files:
                         continue
                     with ExifToolHelper() as e:
@@ -119,6 +129,8 @@ def iter_files(
                                 yield qualified_file
                 else:
                     for f in files:
+                        if args.tags and not any(x in args.tags for x in manifest.get_tags(f)):
+                            continue
                         if allowed_filetype(f):
                             yield os.path.join(root, f)
 

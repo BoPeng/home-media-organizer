@@ -150,13 +150,14 @@ class ManifestItem:
 
 
 class Manifest:
-    def __init__(self: "Manifest", filename: str) -> None:
+    def __init__(self: "Manifest", filename: str | None) -> None:
         self.filename = filename
-        self.manifest = {}
-        if os.path.isfile(self.filename):
+        self.manifest: Dict[str, ManifestItem] = {}
+        if self.filename and os.path.isfile(self.filename):
             self.load()
 
     def load(self: "Manifest") -> None:
+        assert self.filename is not None
         with open(self.filename, "r") as f:
             for line in f:
                 if line.strip() and not line.startswith("#"):
@@ -178,7 +179,25 @@ class Manifest:
                 filename=filename, hash_value=signature, tags=[]
             )
 
+    def __getitem__(self: "Manifest", filename: str) -> ManifestItem:
+        """Return the manifest item with given filename"""
+        if filename not in self.manifest:
+            self.manifest[filename] = ManifestItem(filename=filename, hash_value="", tags=[])
+        return self.manifest[filename]
+
+    def get_tags(self: "Manifest", filename: str) -> List[str]:
+        if filename in self.manifest:
+            return self.manifest[filename].tags
+        return []
+
+    def add_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
+        if filename in self.manifest:
+            self.manifest[filename].tags = list(set(self.manifest[filename].tags + tags))
+        else:
+            self.manifest[filename] = ManifestItem(filename=filename, hash_value="", tags=tags)
+
     def save(self: "Manifest") -> None:
+        assert self.filename is not None
         with open(self.filename, "w") as f:
             for filename in sorted(self.manifest.keys()):
                 f.write(str(self.manifest[filename]) + "\n")
