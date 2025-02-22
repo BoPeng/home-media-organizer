@@ -70,11 +70,18 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                 logger.debug(f"{item} has no tags.")
             continue
         if not args.format or args.format == "json":
-            rich.print(tags)
-        else:
+            rich.print({item: list(tags.keys())})
+        elif args.format == "json-details":
+            rich.print({"filename": item, "tags": tags})
+        elif args.format == "text":
+            rich.print(f"""[cyan]{item}[/cyan]: {" ".join(tags.keys())}""")
+        elif args.format == "text-details":
+            rich.print(f"[yellow]{item}[/yellow]")
             for key, value in tags.items():
                 rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
             rich.print()
+        else:
+            rich.print(f"[red]Unknown format: {args.format}[/red]")
 
         cnt += 1
     if logger is not None:
@@ -499,6 +506,9 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         "--with-tags", nargs="*", help="Files that match one of the specified tags."
     )
     parser.add_argument(
+        "--without-tags", nargs="*", help="Files that does not match any of the specified tags."
+    )
+    parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
     parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
@@ -570,7 +580,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser_show_tags.add_argument("--keys", nargs="*", help="Show all or selected tags")
     parser_show_tags.add_argument(
         "--format",
-        choices=("json", "text"),
+        choices=("json", "text", "json-details", "text-details"),
         default="json",
         help="Show output in json or text format",
     )
@@ -864,8 +874,8 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
                 continue
             setattr(args, k, v)
     # if args if specified, manifest should be specified.
-    if args.with_tags and not args.manifest:
-        raise ValueError("A manifest file is needed if with_tags is specified.")
+    if (args.with_tags or args.without_tags) and not args.manifest:
+        raise ValueError("A manifest file is needed if with_tags or without_tags is specified.")
     return args
 
 

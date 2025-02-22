@@ -60,6 +60,10 @@ def iter_files(
         return match
 
     manifest: Manifest = Manifest(args.manifest)
+    if args.with_tags:
+        files_with_tags = {x.filename for x in manifest.find_by_tags(args.with_tags)}
+    if args.without_tags:
+        files_with_unwanted_tags = {x.filename for x in manifest.find_by_tags(args.without_tags)}
 
     for item in items or args.items:
         # if item is an absolute path, use it directory
@@ -93,9 +97,9 @@ def iter_files(
         if os.path.isfile(item):
             if not allowed_filetype(item):
                 continue
-            if args.with_tags and not any(x in args.with_tags for x in manifest.get_tags(item)):
+            if args.with_tags and item not in files_with_tags:
                 continue
-            if args.without_tags and any(x in args.without_tags for x in manifest.get_tags(item)):
+            if args.without_tags and item in files_with_unwanted_tags:
                 continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
@@ -112,25 +116,19 @@ def iter_files(
                 rich.print(f"[red]{item} is not a filename or directory[/red]")
                 continue
             for root, _, files in os.walk(item):
+                # if with_tags if specified, check if any of the files_with_tags is under root
+                if args.with_tags and not any(f.startswith(root) for f in files_with_tags):
+                    continue
                 if args.with_exif or args.without_exif:
                     # get exif atll at the same time
                     qualified_files = [
                         os.path.join(root, f)
                         for f in files
                         if allowed_filetype(f)
-                        and (
-                            not args.with_tags
-                            or any(
-                                x in args.with_tags
-                                for x in manifest.get_tags(os.path.join(root, f))
-                            )
-                        )
+                        and (not args.with_tags or os.path.join(root, f) in files_with_tags)
                         and (
                             not args.without_tags
-                            or not any(
-                                x in args.without_tags
-                                for x in manifest.get_tags(os.path.join(root, f))
-                            )
+                            or os.path.join(root, f) not in files_with_unwanted_tags
                         )
                     ]
                     if not qualified_files:
@@ -144,14 +142,9 @@ def iter_files(
                                 yield qualified_file
                 else:
                     for f in files:
-                        if args.with_tags and not any(
-                            x in args.with_tags for x in manifest.get_tags(os.path.join(root, f))
-                        ):
+                        if args.with_tags and os.path.join(root, f) not in files_with_tags:
                             continue
-                        if args.without_tags and any(
-                            x in args.without_tags
-                            for x in manifest.get_tags(os.path.join(root, f))
-                        ):
+                        if args.without_tags and os.path.join(root, f) in files_with_unwanted_tags:
                             continue
                         if allowed_filetype(f):
                             yield os.path.join(root, f)

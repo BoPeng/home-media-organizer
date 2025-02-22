@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, Generator, List
 
 import rich
 from diskcache import Cache  # type: ignore
@@ -153,12 +153,12 @@ class ManifestItem:
 
 
 class Manifest:
-    def __init__(self: "Manifest", filename: str | None) -> None:
+    def __init__(self: "Manifest", filename: str) -> None:
         self.database_path = filename
         self._init_db()
 
     @contextmanager
-    def _get_connection(self: "Manifest") -> sqlite3.Connection:
+    def _get_connection(self: "Manifest") -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(self.database_path)
         # Enable JSON support
         conn.execute("PRAGMA journal_mode=WAL")
@@ -194,7 +194,7 @@ class Manifest:
             row = cursor.fetchone()
             if row:
                 return ManifestItem(
-                    filename=row[0], hash_value=row[1], tags=row[2] if row[2] else {}
+                    filename=row[0], hash_value=row[1], tags=json.loads(row[2]) if row[2] else {}
                 )
         return None
 
@@ -209,10 +209,10 @@ class Manifest:
             cursor.execute(
                 """
                 INSERT INTO manifest (filename, hash_value, tags)
-                VALUES (?, ?, json('{}'))
+                VALUES (?, ?, ?)
                 ON CONFLICT(filename) DO UPDATE SET hash_value = ?
             """,
-                (abs_path, signature, signature),
+                (abs_path, signature, {}, signature),
             )
             conn.commit()
 
@@ -231,14 +231,13 @@ class Manifest:
             cursor.execute(
                 """
                 INSERT INTO manifest (filename, hash_value, tags)
-                VALUES (?, '', json(?))
+                VALUES (?, '', ?)
                 ON CONFLICT(filename) DO UPDATE
                 SET tags = json_patch(
-                    COALESCE(tags, json('{}')),
-                    json(?)
+                    COALESCE(tags, ?), ?
                 )
             """,
-                (abs_path, json.dumps(tags), json.dumps(tags)),
+                (abs_path, tags, {}, tags),
             )
             conn.commit()
 
@@ -251,26 +250,29 @@ class Manifest:
             cursor.execute(
                 """
                 INSERT INTO manifest (filename, hash_value, tags)
-                VALUES (?, '', json(?))
-                ON CONFLICT(filename) DO UPDATE SET tags = json(?)
+                VALUES (?, '', ?)
+                ON CONFLICT(filename) DO UPDATE SET tags = ?
             """,
-                (abs_path, json.dumps(tags), json.dumps(tags)),
+                (abs_path, tags, tags),
             )
             conn.commit()
 
-    def find_by_tag(self: "Manifest", tag_name: str) -> List[ManifestItem]:
+    def find_by_tags(self: "Manifest", tag_names: List[str]) -> List[ManifestItem]:
         """Find all items that have a specific tag"""
+        res: Dict[str, ManifestItem] = {}
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT filename, hash_value, tags
-                FROM manifest
-                WHERE json_extract(tags, '$.' || ?) IS NOT NULL
-            """,
-                (tag_name,),
-            )
-            return [
-                ManifestItem(filename=row[0], hash_value=row[1], tags=row[2])
+            for tag_name in tag_names:
+                cursor.execute(
+                    """
+                    SELECT filename, hash_value, tags
+                    FROM manifest
+                    WHERE json_extract(tags, '$.' || ?) IS NOT NULL
+                """,
+                    (tag_name,),
+                )
+            res |= {
+                row[0]: ManifestItem(filename=row[0], hash_value=row[1], tags=json.loads(row[2]))
                 for row in cursor.fetchall()
-            ]
+            }
+        return list(res.values())
