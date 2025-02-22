@@ -9,7 +9,7 @@ from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple
 
 import rich
-from nudenet import NudeDetector  # type: ignore
+from pytorchcv.model_provider import get_model as ptcv_get_model
 from rich.console import Console
 from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
@@ -132,27 +132,12 @@ def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None
         logger.info(f"[blue]{cnt}[/blue] files untagged.")
 
 
-def detect_nudity(
-    filename: str,
-    threshold: float | None,
-    tags: List[str] | None,
-    logger: logging.Logger | None = None,
+def classify_image(
+    params: Tuple[str, str, float | None, int | None, List[str] | None, logging.Logger | None]
 ) -> Tuple[str, Dict[str, Any]]:
-    try:
-        detector = NudeDetector()
-        res = detector.detect(filename)
-        # reorganize the result to be "class": {other elements}
-        return filename, {
-            x["class"]: {k: v for k, v in x.items() if k != "class"}
-            for x in res
-            if "class" in x
-            and (threshold is None or x["score"] > threshold)
-            and (tags is None or x["class"] in tags)
-        }
-    except Exception as e:
-        if logger:
-            logger.debug(f"Error processing {filename}: {e}")
-        return filename, {}
+    filename, model, threshold, top_k, tags, logger = params
+    m = MediaFile(filename)
+    return m.fullname, m.classify(model, threshold, top_k, tags, logger)
 
 
 def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
@@ -163,14 +148,24 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         sys.exit(1)
     manifest = Manifest(args.manifest, logger=logger)
 
-    with Pool() as pool:
+    # download the model if needed
+    try:
+        if args.model != "nudenet":
+            ptcv_get_model(args.model, pretrained=True)
+    except Exception as e:
+        rich.print(f"[red]Failed to download model {args.model} from pytorchcv: {e}[/red]")
+        sys.exit(1)
+
+    with Pool(1) as pool:
         for item, tags in tqdm(
-            pool.starmap(
-                detect_nudity,
+            pool.imap(
+                classify_image,
                 {
                     (
                         x,
+                        args.model,
                         args.threshold,
+                        args.top_k,
                         (tuple(args.tags) if args.tags is not None else args.tags),
                         logger,
                     )
@@ -179,6 +174,12 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
             ),
             desc="Validate media",
         ):
+            if "error" in tags:
+                if logger is not None:
+                    logger.error(f"Error processing {item}: {tags['error']}")
+                continue
+            if logger:
+                logger.info(f"Tagging {item} with {tags}")
             if args.overwrite:
                 manifest.set_tags(item, tags)
             else:
@@ -187,6 +188,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
             processed_cnt += 1
             if tags:
                 cnt += 1
+
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] of {processed_cnt} files are tagged.")
 
@@ -676,7 +678,6 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_classify.add_argument(
         "--model",
-        choices=("nudenet",),
         help="Machine learning model used to tag media.",
     )
     parser_classify.add_argument(
@@ -687,8 +688,12 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser_classify.add_argument(
         "--threshold",
         type=float,
-        default=0.75,
         help="Shreshold for the model. Only classifiers with score greater than this value will be assigned.",
+    )
+    parser_classify.add_argument(
+        "--top-k",
+        type=int,
+        help="Choose the top k predictor.",
     )
     parser_classify.add_argument(
         "--overwrite",

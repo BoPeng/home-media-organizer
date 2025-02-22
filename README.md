@@ -221,46 +221,23 @@ hmo unset-tags 2009/2009-10/ --tags vacation
 
 ### `hmo classify`: Classify media files with a machine learning model
 
-Command `hmo classify` applies a machine learning model on the media files and set the results as tags. It currently only supports model [nudenet](https://github.com/notAI-tech/nudenet) which assigns the following tags
+Command `hmo classify` applies a machine learning model on the media files and set the results as tags.
 
-```toml
-all_labels = [
-    "FEMALE_GENITALIA_COVERED",
-    "FACE_FEMALE",
-    "BUTTOCKS_EXPOSED",
-    "FEMALE_BREAST_EXPOSED",
-    "FEMALE_GENITALIA_EXPOSED",
-    "MALE_BREAST_EXPOSED",
-    "ANUS_EXPOSED",
-    "FEET_EXPOSED",
-    "BELLY_COVERED",
-    "FEET_COVERED",
-    "ARMPITS_COVERED",
-    "ARMPITS_EXPOSED",
-    "FACE_MALE",
-    "BELLY_EXPOSED",
-    "MALE_GENITALIA_EXPOSED",
-    "ANUS_COVERED",
-    "FEMALE_BREAST_COVERED",
-    "BUTTOCKS_COVERED",
-]
-```
-
-For example,
+For example, to identify pictures that are not suitable to viewed by public, even family members, you can use a [nudenet](https://github.com/notAI-tech/nudenet) model as follows
 
 ```sh
 hmo classify 2009 --model nudenet
 ```
 
-will assign these tags to medias that are classified as such. Then, with commands such as
+to assign tags such as `FACE_FEMALE`, `BELLY_EXPOSED`, and `FEMALE_BREAST_COVERED` to medias. You can then use commands such as
 
 ```sh
 hmo show-tags 2009 --tags FEMALE_BREAST_COVERED
 ```
 
-you can identify photos that you might have accidentally included in the public library, and act accordingly.
+to identify inappropriate photos and act accordingly.
 
-This model assigns metadata such as `score` to each prediction. You can use command
+The `nudenet` model assigns metadata such as `score` to each prediction. You can use command
 
 ```sh
 hmo classify 2009 --model nudenet --threshold 0.9
@@ -274,7 +251,7 @@ You can also limit the tags that you would like to assign with option
 hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED BELLY_EXPOSED
 ```
 
-In the future, this command will allows the training of your library to identify your friends and family so that you can find out pictures from your loved ones easily.
+`home-media-organizer` is bundled with [pytorchcv](https://github.com/osmr/pytorchcv), which comes with a large number of pre-trained models. You can use any of the models to classify your libraries although the tags assigned by these models will vary.
 
 ### `hmo show-exif`: Show EXIF information of one of more files
 
