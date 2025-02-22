@@ -270,10 +270,10 @@ class Manifest:
             else:
                 cursor.execute(
                     """
-                INSERT INTO manifest (filename, hash_value, tags)
-                VALUES (?, '', ?)
-                ON CONFLICT(filename) DO UPDATE SET tags = ?
-                """,
+                    INSERT INTO manifest (filename, hash_value, tags)
+                    VALUES (?, '', ?)
+                    ON CONFLICT(filename) DO UPDATE SET tags = ?
+                    """,
                     (abs_path, tags, tags),
                 )
             self.cache.pop(filename, None)
@@ -286,10 +286,10 @@ class Manifest:
             for tag in tags:
                 cursor.execute(
                     """
-                UPDATE manifest
-                SET tags = json_remove(tags, '$.' || ?)
-                WHERE filename = ?
-                """,
+                    UPDATE manifest
+                    SET tags = json_remove(tags, '$.' || ?)
+                    WHERE filename = ?
+                    """,
                     (tag, abs_path),
                 )
             conn.commit()
@@ -320,7 +320,7 @@ class Manifest:
                         SELECT filename, hash_value, tags
                         FROM manifest
                         WHERE json_extract(tags, '$.' || ?) IS NOT NULL
-                    """,
+                        """,
                         (tag_name,),
                     )
                     res |= {

@@ -666,7 +666,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     )
     parser_remove_tags.set_defaults(func=remove_tags, command="remove_tags")
     #
-    # tag medias
+    # tag medias with results from a classifier
     #
     parser_classify = subparsers.add_parser(
         "classify",

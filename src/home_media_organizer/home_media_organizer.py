@@ -154,9 +154,7 @@ def iter_files(
                         if (
                             args.with_tags is not None
                             and os.path.join(root, f) not in files_with_tags
-                        ):
-                            continue
-                        if (
+                        ) or (
                             args.without_tags is not None
                             and os.path.join(root, f) in files_with_unwanted_tags
                         ):
