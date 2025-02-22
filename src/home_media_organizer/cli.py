@@ -60,8 +60,10 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if not args.manifest:
         rich.print("[red]No manifest file specified.[/red]")
         sys.exit(1)
-    manifest = Manifest(args.manifest)
-    for item in iter_files(args):
+    manifest = Manifest(args.manifest, logger=logger)
+    if not args.with_tags:
+        args.with_tags = []
+    for item in iter_files(args, manifest=manifest):
         tags = manifest.get_tags(item)
         if args.keys:
             tags = {k: v for k, v in tags.items() if k in args.keys}
@@ -89,7 +91,10 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
 
 
 def detect_nudity(
-    filename: str, threshold: float | None, acceptable_tags: List[str] | None
+    filename: str,
+    threshold: float | None,
+    acceptable_tags: List[str] | None,
+    logger: logging.Logger | None = None,
 ) -> Tuple[str, Dict[str, Any]]:
     try:
         detector = NudeDetector()
@@ -103,7 +108,8 @@ def detect_nudity(
             and (acceptable_tags is None or x["class"] in acceptable_tags)
         }
     except Exception as e:
-        print(f"Error processing {filename}: {e}")
+        if logger:
+            logger.debug(f"Error processing {filename}: {e}")
         return filename, {}
 
 
@@ -112,7 +118,7 @@ def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if not args.manifest:
         rich.print("[red]No manifest file specified.[/red]")
         sys.exit(1)
-    manifest = Manifest(args.manifest)
+    manifest = Manifest(args.manifest, logger=logger)
     if args.tags:
         for item in iter_files(args):
             if args.overwrite:
@@ -134,6 +140,7 @@ def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                                 if args.acceptable_tags is not None
                                 else args.acceptable_tags
                             ),
+                            logger,
                         )
                         for x in iter_files(args)
                     },
@@ -190,7 +197,7 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
 
     # if there is a manifest file, get the existing file hash
     if args.manifest:
-        manifest = Manifest(args.manifest)
+        manifest = Manifest(args.manifest, logger=logger)
 
     if args.confirmed or not args.remove:
         with Pool() as pool:
@@ -503,10 +510,14 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         help="A manifest file that stores metadata such as file signature and tags.",
     )
     parser.add_argument(
-        "--with-tags", nargs="*", help="Files that match one of the specified tags."
+        "--with-tags",
+        nargs="*",
+        help="Files that match one of the specified tags, or any tag if no value is spacified.",
     )
     parser.add_argument(
-        "--without-tags", nargs="*", help="Files that does not match any of the specified tags."
+        "--without-tags",
+        nargs="*",
+        help="Files that does not match any of the specified tags, or without any tag if no value is specified..",
     )
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."

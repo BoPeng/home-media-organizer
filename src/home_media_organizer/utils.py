@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from logging import Logger
 from typing import Any, Dict, Generator, List
 
 import rich
@@ -153,8 +154,10 @@ class ManifestItem:
 
 
 class Manifest:
-    def __init__(self: "Manifest", filename: str) -> None:
+    def __init__(self: "Manifest", filename: str, logger: Logger | None = None) -> None:
         self.database_path = filename
+        self.logger = logger
+        self.cache = {}
         self._init_db()
 
     @contextmanager
@@ -217,11 +220,16 @@ class Manifest:
             conn.commit()
 
     def get_tags(self: "Manifest", filename: str) -> Dict[str, Any]:
+        if filename in self.cache:
+            return self.cache[filename].tags
         item = self._get_item(filename)
+        self.cache[filename] = item
         return item.tags if item else {}
 
     def add_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
         abs_path = os.path.abspath(filename)
+        if not tags:
+            return
         if isinstance(tags, list):
             tags = {x: {} for x in tags}
         with self._get_connection() as conn:
@@ -239,6 +247,7 @@ class Manifest:
             """,
                 (abs_path, tags, {}, tags),
             )
+            self.cache.pop(filename, None)
             conn.commit()
 
     def set_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
@@ -247,14 +256,25 @@ class Manifest:
             tags = {x: {} for x in tags}
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
+            if not tags:
+                cursor.execute(
+                    """
+                    INSERT INTO manifest (filename, hash_value, tags)
+                    VALUES (?, '', NULL)
+                    ON CONFLICT(filename) DO UPDATE SET tags = NULL
+                    """,
+                    (abs_path,),
+                )
+            else:
+                cursor.execute(
+                    """
                 INSERT INTO manifest (filename, hash_value, tags)
                 VALUES (?, '', ?)
                 ON CONFLICT(filename) DO UPDATE SET tags = ?
-            """,
-                (abs_path, tags, tags),
-            )
+                """,
+                    (abs_path, tags, tags),
+                )
+            self.cache.pop(filename, None)
             conn.commit()
 
     def find_by_tags(self: "Manifest", tag_names: List[str]) -> List[ManifestItem]:
@@ -262,17 +282,36 @@ class Manifest:
         res: Dict[str, ManifestItem] = {}
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            for tag_name in tag_names:
+            if not tag_names:
                 cursor.execute(
                     """
                     SELECT filename, hash_value, tags
-                    FROM manifest
-                    WHERE json_extract(tags, '$.' || ?) IS NOT NULL
-                """,
-                    (tag_name,),
+                    FROM manifest WHERE tags IS NOT NULL
+                    """
                 )
-            res |= {
-                row[0]: ManifestItem(filename=row[0], hash_value=row[1], tags=json.loads(row[2]))
-                for row in cursor.fetchall()
-            }
+                res = {
+                    row[0]: ManifestItem(
+                        filename=row[0], hash_value=row[1], tags=json.loads(row[2])
+                    )
+                    for row in cursor.fetchall()
+                }
+            else:
+                for tag_name in tag_names:
+                    cursor.execute(
+                        """
+                        SELECT filename, hash_value, tags
+                        FROM manifest
+                        WHERE json_extract(tags, '$.' || ?) IS NOT NULL
+                    """,
+                        (tag_name,),
+                    )
+                res |= {
+                    row[0]: ManifestItem(
+                        filename=row[0], hash_value=row[1], tags=json.loads(row[2])
+                    )
+                    for row in cursor.fetchall()
+                }
+        if self.logger:
+            self.logger.debug(f"Found {len(res)} items with tag {tag_names}")
+        self.cache |= res
         return list(res.values())

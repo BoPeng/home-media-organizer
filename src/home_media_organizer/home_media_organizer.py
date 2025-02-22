@@ -3,6 +3,7 @@ import fnmatch
 import os
 import sys
 import threading
+from logging import Logger
 from queue import Queue
 from typing import Any, Callable, Dict, Generator, List
 
@@ -15,7 +16,10 @@ from .utils import Manifest
 
 
 def iter_files(
-    args: argparse.Namespace, items: List[str] | None = None
+    args: argparse.Namespace,
+    items: List[str] | None = None,
+    manifest: Manifest | None = None,
+    logger: Logger | None = None,
 ) -> Generator[str, None, None]:
     def allowed_filetype(filename: str) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
@@ -59,10 +63,11 @@ def iter_files(
                     match = False
         return match
 
-    manifest: Manifest = Manifest(args.manifest)
-    if args.with_tags:
+    if (args.with_tags is not None or args.without_tags is not None) and not manifest:
+        manifest: Manifest = Manifest(args.manifest, logger=logger)
+    if args.with_tags is not None:
         files_with_tags = {x.filename for x in manifest.find_by_tags(args.with_tags)}
-    if args.without_tags:
+    if args.without_tags is not None:
         files_with_unwanted_tags = {x.filename for x in manifest.find_by_tags(args.without_tags)}
 
     for item in items or args.items:
@@ -97,9 +102,9 @@ def iter_files(
         if os.path.isfile(item):
             if not allowed_filetype(item):
                 continue
-            if args.with_tags and item not in files_with_tags:
+            if args.with_tags is not None and item not in files_with_tags:
                 continue
-            if args.without_tags and item in files_with_unwanted_tags:
+            if args.without_tags is not None and item in files_with_unwanted_tags:
                 continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
@@ -117,7 +122,9 @@ def iter_files(
                 continue
             for root, _, files in os.walk(item):
                 # if with_tags if specified, check if any of the files_with_tags is under root
-                if args.with_tags and not any(f.startswith(root) for f in files_with_tags):
+                if args.with_tags is not None and not any(
+                    f.startswith(root) for f in files_with_tags
+                ):
                     continue
                 if args.with_exif or args.without_exif:
                     # get exif atll at the same time
@@ -125,9 +132,9 @@ def iter_files(
                         os.path.join(root, f)
                         for f in files
                         if allowed_filetype(f)
-                        and (not args.with_tags or os.path.join(root, f) in files_with_tags)
+                        and (args.with_tags is None or os.path.join(root, f) in files_with_tags)
                         and (
-                            not args.without_tags
+                            args.without_tags is None
                             or os.path.join(root, f) not in files_with_unwanted_tags
                         )
                     ]
@@ -142,9 +149,15 @@ def iter_files(
                                 yield qualified_file
                 else:
                     for f in files:
-                        if args.with_tags and os.path.join(root, f) not in files_with_tags:
+                        if (
+                            args.with_tags is not None
+                            and os.path.join(root, f) not in files_with_tags
+                        ):
                             continue
-                        if args.without_tags and os.path.join(root, f) in files_with_unwanted_tags:
+                        if (
+                            args.without_tags is not None
+                            and os.path.join(root, f) in files_with_unwanted_tags
+                        ):
                             continue
                         if allowed_filetype(f):
                             yield os.path.join(root, f)
