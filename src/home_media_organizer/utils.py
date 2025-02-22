@@ -167,34 +167,48 @@ class Manifest:
                     )
 
     def get_hash(self: "Manifest", filename: str, default: str | None = None) -> str | None:
-        if filename in self.manifest:
-            return self.manifest[filename].hash_value
+        if os.path.abspath(filename) in self.manifest:
+            return self.manifest[os.path.abspath(filename)].hash_value
         return default
 
     def set_hash(self: "Manifest", filename: str, signature: str) -> None:
-        if filename in self.manifest:
-            self.manifest[filename].hash_value = signature
+        if os.path.abspath(filename) in self.manifest:
+            self.manifest[os.path.abspath(filename)].hash_value = signature
         else:
-            self.manifest[filename] = ManifestItem(
-                filename=filename, hash_value=signature, tags=[]
+            self.manifest[os.path.abspath(filename)] = ManifestItem(
+                filename=os.path.abspath(filename), hash_value=signature, tags=[]
             )
 
     def __getitem__(self: "Manifest", filename: str) -> ManifestItem:
         """Return the manifest item with given filename"""
-        if filename not in self.manifest:
-            self.manifest[filename] = ManifestItem(filename=filename, hash_value="", tags=[])
-        return self.manifest[filename]
+        if os.path.abspath(filename) not in self.manifest:
+            self.manifest[os.path.abspath(filename)] = ManifestItem(
+                filename=os.path.abspath(filename), hash_value="", tags=[]
+            )
+        return self.manifest[os.path.abspath(filename)]
 
     def get_tags(self: "Manifest", filename: str) -> List[str]:
-        if filename in self.manifest:
-            return self.manifest[filename].tags
+        if os.path.abspath(filename) in self.manifest:
+            return self.manifest[os.path.abspath(filename)].tags
         return []
 
     def add_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
-        if filename in self.manifest:
-            self.manifest[filename].tags = list(set(self.manifest[filename].tags + tags))
+        if os.path.abspath(filename) in self.manifest:
+            self.manifest[os.path.abspath(filename)].tags = list(
+                set(self.manifest[os.path.abspath(filename)].tags + tags)
+            )
         else:
-            self.manifest[filename] = ManifestItem(filename=filename, hash_value="", tags=tags)
+            self.manifest[os.path.abspath(filename)] = ManifestItem(
+                filename=os.path.abspath(filename), hash_value="", tags=tags
+            )
+
+    def set_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
+        if os.path.abspath(filename) in self.manifest:
+            self.manifest[os.path.abspath(filename)].tags = tags
+        else:
+            self.manifest[os.path.abspath(filename)] = ManifestItem(
+                filename=os.path.abspath(filename), hash_value="", tags=tags
+            )
 
     def save(self: "Manifest") -> None:
         assert self.filename is not None

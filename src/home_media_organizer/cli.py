@@ -55,10 +55,11 @@ def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
 
 def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
+    manifest = Manifest(args.manifest)
     for item in iter_files(args):
-        m = MediaFile(item)
-        m.set_exif(args.values, override=args.override, confirmed=args.confirmed, logger=logger)
+        manifest.add_tags(item, args.tags)
         cnt += 1
+    manifest.save()
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files tagged.")
 
@@ -418,7 +419,9 @@ def get_common_args_parser() -> argparse.ArgumentParser:
         "--manifest",
         help="A manifest file that stores metadata such as file signature and tags.",
     )
-    parser.add_argument("--tags", help="Files that match one of the specified tags.")
+    parser.add_argument(
+        "--with-tags", nargs="*", help="Files that match one of the specified tags."
+    )
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
@@ -494,7 +497,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         choices=("nudenet",),
         help="Machine learning model used to tag media.",
     )
-    parser_tag.set_defaults(func=show_exif, command="tag")
+    parser_tag.set_defaults(func=tag, command="tag")
     #
     # check jpeg
     #
@@ -750,8 +753,8 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
                 continue
             setattr(args, k, v)
     # if args if specified, manifest should be specified.
-    if args.tags and not args.manifest:
-        raise ValueError("A manifest file is needed if tags is specified.")
+    if args.with_tags and not args.manifest:
+        raise ValueError("A manifest file is needed if with_tags is specified.")
     return args
 
 
