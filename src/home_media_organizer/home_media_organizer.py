@@ -64,10 +64,12 @@ def iter_files(
         return match
 
     if (args.with_tags is not None or args.without_tags is not None) and not manifest:
-        manifest: Manifest = Manifest(args.manifest, logger=logger)
+        manifest = Manifest(args.manifest, logger=logger)
     if args.with_tags is not None:
+        assert manifest is not None
         files_with_tags = {x.filename for x in manifest.find_by_tags(args.with_tags)}
     if args.without_tags is not None:
+        assert manifest is not None
         files_with_unwanted_tags = {x.filename for x in manifest.find_by_tags(args.without_tags)}
 
     for item in items or args.items:

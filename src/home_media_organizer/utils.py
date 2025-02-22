@@ -157,7 +157,7 @@ class Manifest:
     def __init__(self: "Manifest", filename: str, logger: Logger | None = None) -> None:
         self.database_path = filename
         self.logger = logger
-        self.cache = {}
+        self.cache: Dict[str, ManifestItem] = {}
         self._init_db()
 
     @contextmanager
@@ -223,8 +223,10 @@ class Manifest:
         if filename in self.cache:
             return self.cache[filename].tags
         item = self._get_item(filename)
-        self.cache[filename] = item
-        return item.tags if item else {}
+        if item:
+            self.cache[filename] = item
+            return item.tags
+        return {}
 
     def add_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
         abs_path = os.path.abspath(filename)
