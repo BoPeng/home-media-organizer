@@ -277,6 +277,22 @@ class Manifest:
             self.cache.pop(filename, None)
             conn.commit()
 
+    def remove_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
+        abs_path = os.path.abspath(filename)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for tag in tags:
+                cursor.execute(
+                    """
+                UPDATE manifest
+                SET tags = json_remove(tags, '$.' || ?)
+                WHERE filename = ?
+                """,
+                    (tag, abs_path),
+                )
+            conn.commit()
+            self.cache.pop(filename, None)
+
     def find_by_tags(self: "Manifest", tag_names: List[str]) -> List[ManifestItem]:
         """Find all items that have a specific tag"""
         res: Dict[str, ManifestItem] = {}

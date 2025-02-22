@@ -90,10 +90,52 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         logger.info(f"[blue]{cnt}[/blue] files shown.")
 
 
+def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    cnt = 0
+    if not args.manifest:
+        rich.print("[red]No manifest file specified.[/red]")
+        sys.exit(1)
+    manifest = Manifest(args.manifest, logger=logger)
+    metadata = {}
+    for item in args.metadata or []:
+        if "=" not in item:
+            rich.print(f"[red]Invalid metadata: {item}[/red]")
+            sys.exit(1)
+        k, v = item.split("=", 1)
+        metadata[k] = v
+    tags = {x: metadata for x in args.tags}
+
+    for item in iter_files(args):
+        if args.overwrite:
+            manifest.set_tags(item, tags)
+        else:
+            manifest.add_tags(item, tags)
+        cnt += 1
+    if logger is not None:
+        logger.info(f"[blue]{cnt}[/blue] files tagged.")
+
+
+def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+    cnt = 0
+    if not args.manifest:
+        rich.print("[red]No manifest file specified.[/red]")
+        sys.exit(1)
+    manifest = Manifest(args.manifest, logger=logger)
+    # find only files with these tags
+    if args.with_tags is None:
+        args.with_tags = args.tags
+    #
+    for item in iter_files(args, manifest=manifest, logger=logger):
+        manifest.remove_tags(item, args.tags)
+        cnt += 1
+    if logger is not None:
+        logger.info(f"[blue]{cnt}[/blue] files untagged.")
+
+
 def detect_nudity(
     filename: str,
     threshold: float | None,
-    acceptable_tags: List[str] | None,
+    tags: List[str] | None,
     logger: logging.Logger | None = None,
 ) -> Tuple[str, Dict[str, Any]]:
     try:
@@ -105,7 +147,7 @@ def detect_nudity(
             for x in res
             if "class" in x
             and (threshold is None or x["score"] > threshold)
-            and (acceptable_tags is None or x["class"] in acceptable_tags)
+            and (tags is None or x["class"] in tags)
         }
     except Exception as e:
         if logger:
@@ -113,48 +155,40 @@ def detect_nudity(
         return filename, {}
 
 
-def tag(args: argparse.Namespace, logger: logging.Logger | None) -> None:
+def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
+    processed_cnt = 0
     if not args.manifest:
         rich.print("[red]No manifest file specified.[/red]")
         sys.exit(1)
     manifest = Manifest(args.manifest, logger=logger)
-    if args.tags:
-        for item in iter_files(args):
-            if args.overwrite:
-                manifest.set_tags(item, args.tags)
-            else:
-                manifest.add_tags(item, args.tags)
-            cnt += 1
-    else:
-        with Pool() as pool:
-            for item, tags in tqdm(
-                pool.starmap(
-                    detect_nudity,
-                    {
-                        (
-                            x,
-                            args.threshold,
-                            (
-                                tuple(args.acceptable_tags)
-                                if args.acceptable_tags is not None
-                                else args.acceptable_tags
-                            ),
-                            logger,
-                        )
-                        for x in iter_files(args)
-                    },
-                ),
-                desc="Validate media",
-            ):
-                if args.overwrite:
-                    manifest.set_tags(item, tags)
-                else:
-                    manifest.add_tags(item, tags)
 
-        cnt += 1
+    with Pool() as pool:
+        for item, tags in tqdm(
+            pool.starmap(
+                detect_nudity,
+                {
+                    (
+                        x,
+                        args.threshold,
+                        (tuple(args.tags) if args.tags is not None else args.tags),
+                        logger,
+                    )
+                    for x in iter_files(args)
+                },
+            ),
+            desc="Validate media",
+        ):
+            if args.overwrite:
+                manifest.set_tags(item, tags)
+            else:
+                manifest.add_tags(item, tags)
+
+            processed_cnt += 1
+            if tags:
+                cnt += 1
     if logger is not None:
-        logger.info(f"[blue]{cnt}[/blue] files tagged.")
+        logger.info(f"[blue]{cnt}[/blue] of {processed_cnt} files are tagged.")
 
 
 def rename_file(
@@ -596,40 +630,72 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         help="Show output in json or text format",
     )
     parser_show_tags.set_defaults(func=show_tags, command="show-tags")
-
     #
-    # tag medias
+    # set tags to media files
     #
-    parser_tag = subparsers.add_parser(
-        "tag",
+    parser_set_tags = subparsers.add_parser(
+        "set-tags",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[parent_parser],
         help="Tag medias according to fixed tags or some machine learning model",
     )
-    tag_type = parser_tag.add_mutually_exclusive_group(required=True)
-    tag_type.add_argument("--tags", nargs="*", help="Tag medias")
-    tag_type.add_argument(
+    parser_set_tags.add_argument("--tags", nargs="*", help="Tags to be set to medis files")
+    parser_set_tags.add_argument(
+        "--metadata",
+        nargs="*",
+        help="""Meta data set to tags, in the format of KEY=VALUE. These valuws will only
+          be displayed with json-details or text-details of show-tags command.""",
+    )
+    parser_set_tags.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Remove all existing tags. By default this command will overwrite existing tags.",
+    )
+    parser_set_tags.set_defaults(func=set_tags, command="set_tags")
+    #
+    # unset tags to media files
+    #
+    parser_remove_tags = subparsers.add_parser(
+        "remove-tags",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[parent_parser],
+        help="Tag medias according to fixed tags or some machine learning model",
+    )
+    parser_remove_tags.add_argument(
+        "--tags", nargs="+", help="Tags to be removed from medis files"
+    )
+    parser_remove_tags.set_defaults(func=remove_tags, command="remove_tags")
+    #
+    # tag medias
+    #
+    parser_classify = subparsers.add_parser(
+        "classify",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[parent_parser],
+        help="Classify photos and assign results as tags to media files.",
+    )
+    parser_classify.add_argument(
         "--model",
         choices=("nudenet",),
         help="Machine learning model used to tag media.",
     )
-    parser_tag.add_argument(
-        "--acceptable-tags",
+    parser_classify.add_argument(
+        "--tags",
         nargs="*",
         help="Accept only specified tags. All other tags returned from the model will be ignored.",
     )
-    parser_tag.add_argument(
+    parser_classify.add_argument(
         "--threshold",
         type=float,
         default=0.75,
         help="Shreshold for the model. Only classifiers with score greater than this value will be assigned.",
     )
-    parser_tag.add_argument(
+    parser_classify.add_argument(
         "--overwrite",
         action="store_true",
         help="Remove all existing tags.",
     )
-    parser_tag.set_defaults(func=tag, command="tag")
+    parser_classify.set_defaults(func=classify, command="classify")
     #
     # check jpeg
     #

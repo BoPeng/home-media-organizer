@@ -28,6 +28,10 @@ Table of Contents:
   - [Assumptions](#assumptions)
   - [Configuration file](#configuration-file)
   - [`hmo-list`: List all or selected media files](#hmo-list-list-all-or-selected-media-files)
+  - [`hmo show-tags`: Show tags assciated with media files](#hmo-show-tags-show-tags-assciated-with-media-files)
+  - [`hmo set-tags`: Set tags to media files](#hmo-set-tags-set-tags-to-media-files)
+  - [`hmo unset-tags`: Remove specified tags from media files](#hmo-unset-tags-remove-specified-tags-from-media-files)
+  - [`hmo classify`: Classify media files with a machine learning model](#hmo-classify-classify-media-files-with-a-machine-learning-model)
   - [`hmo show-exif`: Show EXIF information of one of more files](#hmo-show-exif-show-exif-information-of-one-of-more-files)
   - [`hmo set-exif`: Set exif metadata to media files](#hmo-set-exif-set-exif-metadata-to-media-files)
   - [`hmo shift-exif`: Shift all dates by certain dates](#hmo-shift-exif-shift-all-dates-by-certain-dates)
@@ -164,7 +168,14 @@ Note that `--search-paths` is an option used by most `hmo` commands, which speci
 hmo show-tags 2009
 ```
 
-shows all tags for files under folder 2009.
+shows all tags for files under folder 2009. This command, and all following tag and classification related commands, requires a parameter `--manifest` that points to a manifest database. This parameter is usually set in the configuration file as
+
+```toml
+[default]
+manifest = '/path/to/library/manifest.db'
+```
+
+so we will ignore this option from the commands.
 
 Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
 
@@ -174,7 +185,7 @@ hmo show-tags 2009 --without-tags FACE_FEMALE FACE_MALE
 
 If want to display a subset of tags, use option `--tags`
 
-```
+```sh
 hmo show-tags 2009 --tags FACE_FEMALE FACE_MALE
 ```
 
@@ -182,11 +193,88 @@ Note that option `with-tags` is used to show all files with one of the tags and 
 
 The output will by default in plain `text` format, such as
 
-```
+```sh
 filename: tag1 tag2
 ```
 
 but you can change the format to `json`, `json-details`, `text-details`, where the details version will output meta information related to tags, such as `score` from classifiers.
+
+### `hmo set-tags`: Set tags to media files
+
+Unlike `exif` which are part of the media files, tags are stored in a separate database specified with parameter `--manifest`. These tags have a name, and an arbitray set of metadata, which holds values such as `score` for some classifier.
+
+To set tags to a set of files, run
+
+```sh
+hmo set-tags 2009/2009-10/ --tags vacation hawaii
+```
+
+The command by default adds tags to the media files. You can replace all existing tags with specified tags with option `--overwrite`. If you would like to remove a set of tags, use command `hmo unset-tags`.
+
+### `hmo unset-tags`: Remove specified tags from media files
+
+The following command remove the tag `vacation` from specified files but leaves other tags untouched.
+
+```sh
+hmo unset-tags 2009/2009-10/ --tags vacation
+```
+
+### `hmo classify`: Classify media files with a machine learning model
+
+Command `hmo classify` applies a machine learning model on the media files and set the results as tags. It currently only supports model [nudenet](https://github.com/notAI-tech/nudenet) which assigns the following tags
+
+```toml
+all_labels = [
+    "FEMALE_GENITALIA_COVERED",
+    "FACE_FEMALE",
+    "BUTTOCKS_EXPOSED",
+    "FEMALE_BREAST_EXPOSED",
+    "FEMALE_GENITALIA_EXPOSED",
+    "MALE_BREAST_EXPOSED",
+    "ANUS_EXPOSED",
+    "FEET_EXPOSED",
+    "BELLY_COVERED",
+    "FEET_COVERED",
+    "ARMPITS_COVERED",
+    "ARMPITS_EXPOSED",
+    "FACE_MALE",
+    "BELLY_EXPOSED",
+    "MALE_GENITALIA_EXPOSED",
+    "ANUS_COVERED",
+    "FEMALE_BREAST_COVERED",
+    "BUTTOCKS_COVERED",
+]
+```
+
+For example,
+
+```sh
+hmo classify 2009 --model nudenet
+```
+
+will assign these tags to medias that are classified as such. Then, with commands such as
+
+```sh
+hmo show-tags 2009 --tags FEMALE_BREAST_COVERED
+```
+
+you can identify photos that you might have accidentally included in the public library, and act accordingly.
+
+This model assigns metadata such as `score` to each prediction. You can use command
+
+```sh
+hmo classify 2009 --model nudenet --threshold 0.9
+```
+
+to only assign tags if the model is confident enough.
+
+You can also limit the tags that you would like to assign with option
+
+```sh
+hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED BELLY_EXPOSED
+```
+
+In the future, this command will allows the training of your library to identify your friends and family so that you can find out pictures from your loved ones easily.
 
 ### `hmo show-exif`: Show EXIF information of one of more files
 
