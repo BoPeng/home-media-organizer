@@ -3,6 +3,7 @@ import logging
 import os
 from collections import defaultdict
 from multiprocessing import Pool
+from pathlib import Path
 from typing import Tuple
 
 from tqdm import tqdm  # type: ignore
@@ -14,12 +15,12 @@ from .utils import clear_cache, get_file_hash, get_response
 #
 # dedup: remove duplicated files
 #
-def get_file_size(filename: str) -> Tuple[str, int]:
-    return (filename, os.path.getsize(filename))
+def get_file_size(filename: Path) -> Tuple[Path, int]:
+    return (filename, filename.stat().st_size)
 
 
-def get_file_md5(filename: str) -> Tuple[str, str]:
-    return (filename, get_file_hash(os.path.abspath(filename)))
+def get_file_md5(filename: Path) -> Tuple[Path, str]:
+    return (filename, get_file_hash(filename.resolve()))
 
 
 def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:

@@ -1,14 +1,13 @@
 import hashlib
 import json
 import os
-import platform
 import sqlite3
-import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from logging import Logger
+from pathlib import Path
 from typing import Any, Dict, Generator, List
 
 from diskcache import Cache  # type: ignore
@@ -41,8 +40,11 @@ class OrganizeOperation(Enum):
     COPY = "copy"
 
 
-cachedir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
-cache = Cache(cachedir, verbose=0)
+hmo_home = Path.home() / ".ai-marketplace-monitor"
+hmo_home.mkdir(parents=True, exist_ok=True)
+cache_dir = hmo_home / "cache"
+cache_dir.mkdir(parents=True, exist_ok=True)
+cache = Cache(cache_dir, verbose=0)
 
 
 def clear_cache(tag: str) -> None:
@@ -54,11 +56,11 @@ def get_response(msg: str) -> bool:
 
 
 @cache.memoize(tag="signature")
-def get_file_hash(file_path: str) -> str:
+def get_file_hash(file_path: Path) -> str:
     return calculate_file_hash(file_path)
 
 
-def calculate_file_hash(file_path: str) -> str:
+def calculate_file_hash(file_path: Path) -> str:
     sha_hash = hashlib.sha256()
     with open(file_path, "rb") as f:
         # Read and update hash in chunks of 4K
@@ -153,10 +155,15 @@ class ManifestItem:
 
 
 class Manifest:
-    def __init__(self: "Manifest", filename: str, logger: Logger | None = None) -> None:
-        self.database_path = filename
+    def __init__(
+        self: "Manifest", filename: str | None = None, logger: Logger | None = None
+    ) -> None:
         self.logger = logger
-        self.cache: Dict[str, ManifestItem] = {}
+        self.cache: Dict[Path, ManifestItem] = {}
+        self.init_db(filename)
+
+    def init_db(self: "Manifest", filename: str | None) -> None:
+        self.database_path = str(hmo_home / "manifest.db") if filename is None else filename
         self._init_db()
 
     def get_all_tags(self: "Manifest") -> List[Dict[str, Any]]:
@@ -192,7 +199,7 @@ class Manifest:
             )
             conn.commit()
 
-    def _get_item(self: "Manifest", filename: str) -> ManifestItem | None:
+    def _get_item(self: "Manifest", filename: Path) -> ManifestItem | None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -206,12 +213,12 @@ class Manifest:
                 )
         return None
 
-    def get_hash(self: "Manifest", filename: str, default: str | None = None) -> str | None:
+    def get_hash(self: "Manifest", filename: Path, default: str | None = None) -> str | None:
         item = self._get_item(filename)
         return item.hash_value if item else default
 
-    def set_hash(self: "Manifest", filename: str, signature: str) -> None:
-        abs_path = os.path.abspath(filename)
+    def set_hash(self: "Manifest", filename: Path, signature: str) -> None:
+        abs_path = filename.resolve()
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -224,7 +231,7 @@ class Manifest:
             )
             conn.commit()
 
-    def get_tags(self: "Manifest", filename: str) -> Dict[str, Any]:
+    def get_tags(self: "Manifest", filename: Path) -> Dict[str, Any]:
         if filename in self.cache:
             return self.cache[filename].tags
         item = self._get_item(filename)
@@ -233,8 +240,8 @@ class Manifest:
             return item.tags
         return {}
 
-    def add_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
-        abs_path = os.path.abspath(filename)
+    def add_tags(self: "Manifest", filename: Path, tags: Dict[str, Any] | List[str]) -> None:
+        abs_path = filename.resolve()
         if not tags:
             return
         if isinstance(tags, list):
@@ -257,8 +264,8 @@ class Manifest:
             self.cache.pop(filename, None)
             conn.commit()
 
-    def set_tags(self: "Manifest", filename: str, tags: Dict[str, Any] | List[str]) -> None:
-        abs_path = os.path.abspath(filename)
+    def set_tags(self: "Manifest", filename: Path, tags: Dict[str, Any] | List[str]) -> None:
+        abs_path = filename.resolve()
         if isinstance(tags, list):
             tags = {x: {} for x in tags}
         with self._get_connection() as conn:
@@ -284,8 +291,8 @@ class Manifest:
             self.cache.pop(filename, None)
             conn.commit()
 
-    def remove_tags(self: "Manifest", filename: str, tags: List[str]) -> None:
-        abs_path = os.path.abspath(filename)
+    def remove_tags(self: "Manifest", filename: Path, tags: List[str]) -> None:
+        abs_path = filename.resolve()
         with self._get_connection() as conn:
             cursor = conn.cursor()
             for tag in tags:
@@ -323,7 +330,7 @@ class Manifest:
 
     def get_files_with_any_tag(self: "Manifest") -> List[ManifestItem]:
         """Get files with any tag"""
-        res: Dict[str, ManifestItem] = {}
+        res: Dict[Path, ManifestItem] = {}
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -333,7 +340,9 @@ class Manifest:
                 """
             )
             res = {
-                row[0]: ManifestItem(filename=row[0], hash_value=row[1], tags=json.loads(row[2]))
+                Path(row[0]): ManifestItem(
+                    filename=row[0], hash_value=row[1], tags=json.loads(row[2])
+                )
                 for row in cursor.fetchall()
             }
             self.cache |= res
@@ -382,3 +391,7 @@ class Manifest:
             return []
 
         return evaluate_expression(parsed)
+
+
+# create a default manifest database, can be set to another path
+manifest = Manifest()

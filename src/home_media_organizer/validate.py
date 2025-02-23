@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 from multiprocessing import Pool
+from pathlib import Path
 from typing import Tuple
 
 import rich
@@ -9,7 +10,7 @@ from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import Manifest, cache, calculate_file_hash, clear_cache, get_response
+from .utils import cache, calculate_file_hash, clear_cache, get_response, manifest
 
 try:
     import ffmpeg  # type: ignore
@@ -49,22 +50,18 @@ def mpg_playable(file_path: str) -> bool:
 #
 # check jpeg
 #
-def check_media_file(item: str) -> Tuple[str, str, bool]:
+def check_media_file(item: Path) -> Tuple[Path, str, bool]:
     return (
         item,
         calculate_file_hash(item),
-        (any(item.endswith(x) for x in (".jpg", ".jpeg")) and not jpeg_openable(item))
-        or (any(item.lower().endswith(x) for x in (".mp4", ".mpg")) and not mpg_playable(item)),
+        (item.suffix in (".jpg", ".jpeg") and not jpeg_openable(item))
+        or (item.suffix.lower() in (".mp4", ".mpg") and not mpg_playable(item)),
     )
 
 
 def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if args.no_cache:
         clear_cache(tag="validate")
-
-    # if there is a manifest file, get the existing file hash
-    if args.manifest:
-        manifest = Manifest(args.manifest, logger=logger)
 
     if args.confirmed or not args.remove:
         with Pool(args.jobs or None) as pool:

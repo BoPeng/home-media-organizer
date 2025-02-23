@@ -1,11 +1,8 @@
 import argparse
 import logging
-import sys
-
-import rich
 
 from .home_media_organizer import iter_files
-from .utils import Manifest
+from .utils import manifest
 
 
 #
@@ -13,15 +10,11 @@ from .utils import Manifest
 #
 def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
-    if not args.manifest:
-        rich.print("[red]No manifest file specified.[/red]")
-        sys.exit(1)
-    manifest = Manifest(args.manifest, logger=logger)
     # find only files with these tags
     if args.with_tags is None:
         args.with_tags = args.tags
     #
-    for item in iter_files(args, manifest=manifest, logger=logger):
+    for item in iter_files(args, logger=logger):
         manifest.remove_tags(item, args.tags)
         cnt += 1
     if logger is not None:

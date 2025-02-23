@@ -1,16 +1,14 @@
 import argparse
 import logging
-import os
-import sys
 from multiprocessing import Pool
+from pathlib import Path
 from typing import Any, Dict, Generic, List, Tuple, Type, TypeVar, cast
 
 import numpy as np
-import rich
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import Manifest, cache
+from .utils import cache, manifest
 
 
 #
@@ -18,12 +16,12 @@ from .utils import Manifest, cache
 #
 def classify_image(
     params: Tuple[
-        str, Tuple[str], float | None, int | None, Tuple[str] | None, logging.Logger | None
+        Path, Tuple[str], float | None, int | None, Tuple[str] | None, logging.Logger | None
     ]
-) -> Tuple[str, Dict[str, Any]]:
+) -> Tuple[Path, Dict[str, Any]]:
     filename, models, threshold, top_k, tags, logger = params
     res: Dict[str, Any] = {}
-    fullname = os.path.abspath(filename)
+    fullname = filename.resolve()
     for model_name in models:
         model_class: Type[Classifier] = get_classifier_class(model_name)
         model = model_class(threshold, top_k, tags, logger)
@@ -35,10 +33,6 @@ def classify_image(
 def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
     processed_cnt = 0
-    if not args.manifest:
-        rich.print("[red]No manifest file specified.[/red]")
-        sys.exit(1)
-    manifest = Manifest(args.manifest, logger=logger)
 
     # download the model if needed
     with Pool(args.jobs or None) as pool:
@@ -122,16 +116,16 @@ class Classifier(Generic[TClassifier]):
         self.tags = tags
         self.logger = logger
 
-    def _cache_key(self, filename: str) -> Tuple[str, str]:
-        return (self.name, filename)
+    def _cache_key(self, filename: Path) -> Tuple[str, str]:
+        return (self.name, str(filename))
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         raise NotImplementedError()
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         raise NotImplementedError()
 
-    def classify(self, filename: str) -> Dict[str, Any]:
+    def classify(self, filename: Path) -> Dict[str, Any]:
         key = self._cache_key(filename)
         res = cache.get(key, None)
         if res is None:
@@ -143,7 +137,7 @@ class Classifier(Generic[TClassifier]):
 class NudeNetClassifier(Classifier):
     name = "nudenet"
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from nudenet import NudeDetector  # type: ignore
 
         detector = NudeDetector()
@@ -167,7 +161,7 @@ class NudeNetClassifier(Classifier):
 class AgeClassifier(Classifier):
     name = "age"
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
@@ -188,7 +182,7 @@ class AgeClassifier(Classifier):
 class GenderClassifier(Classifier):
     name = "gender"
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
@@ -216,7 +210,7 @@ class GenderClassifier(Classifier):
 class RaceClassifier(Classifier):
     name = "race"
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
@@ -244,7 +238,7 @@ class RaceClassifier(Classifier):
 class EmotionClassifier(Classifier):
     name = "emotion"
 
-    def _classify(self, filename: str) -> List[Dict[str, Any]]:
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:

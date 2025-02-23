@@ -2,13 +2,14 @@ import argparse
 import logging
 import sys
 from multiprocessing import Pool
+from pathlib import Path
 from typing import List, Tuple, cast
 
 import rich
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import Manifest
+from .utils import manifest
 
 #
 # set tags to media files
@@ -16,8 +17,8 @@ from .utils import Manifest
 
 
 def verify_files(
-    params: Tuple[str, Tuple[str, ...] | None, float, logging.Logger | None]
-) -> Tuple[str, bool]:
+    params: Tuple[Path, Tuple[str, ...] | None, float, logging.Logger | None]
+) -> Tuple[Path, bool]:
     filename, benchmark_files, threshold, logger = params
     if benchmark_files is None:
         return filename, True
@@ -34,10 +35,6 @@ def verify_files(
 
 def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
-    if not args.manifest:
-        rich.print("[red]No manifest file specified.[/red]")
-        sys.exit(1)
-    manifest = Manifest(args.manifest, logger=logger)
     metadata = {}
     for item in args.metadata or []:
         if "=" not in item:

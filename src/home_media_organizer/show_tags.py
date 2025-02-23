@@ -1,11 +1,10 @@
 import argparse
 import logging
-import sys
 
 import rich
 
 from .home_media_organizer import iter_files
-from .utils import Manifest
+from .utils import manifest
 
 
 #
@@ -13,10 +12,6 @@ from .utils import Manifest
 #
 def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     cnt = 0
-    if not args.manifest:
-        rich.print("[red]No manifest file specified.[/red]")
-        sys.exit(1)
-    manifest = Manifest(args.manifest, logger=logger)
     if args.all is True:
         all_tags = manifest.get_all_tags()
         combined_tags = {x: y for d in all_tags for x, y in d.items()}
@@ -35,7 +30,7 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         return
     if args.with_tags is None:
         args.with_tags = []
-    for item in iter_files(args, manifest=manifest):
+    for item in iter_files(args):
         tags = manifest.get_tags(item)
         if args.tags:
             tags = {k: v for k, v in tags.items() if k in args.tags}

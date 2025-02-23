@@ -20,12 +20,12 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
             if "-" in args.values:
                 args.values.remove("-")
                 args.values += sys.stdin.read().strip().split("\n")
-            for item in args.values:
-                if "=" not in item:
+            for value in args.values:
+                if "=" not in value:
                     if logger is not None:
-                        logger.error(f"[red]Invalid exif value {item}. Should be key=value[/red]")
+                        logger.error(f"[red]Invalid exif value {value}. Should be key=value[/red]")
                     sys.exit(1)
-                k, v = item.split("=", 1)
+                k, v = value.split("=", 1)
                 values[k] = v
         # from filename?
         if args.from_filename:

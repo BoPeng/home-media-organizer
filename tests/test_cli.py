@@ -67,7 +67,7 @@ def image_file(tmp_path_factory: TempPathFactory) -> Callable:
     def _generate_image_file(
         filename: str = "test.jpg", exif: Dict[str, str] | None = None, valid: bool = True
     ) -> str:
-        fn = str(tmp_path_factory.mktemp("image") / filename)
+        fn = tmp_path_factory.mktemp("image") / filename
         if valid:
             width, height = 100, 100
             color = (1, 2, 5)

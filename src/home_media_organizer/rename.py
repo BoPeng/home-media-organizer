@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 from .home_media_organizer import iter_files, process_with_queue
 from .media_file import MediaFile
@@ -9,7 +10,7 @@ from .media_file import MediaFile
 # rename file to its canonical name
 #
 def rename_file(
-    item: str, filename_format: str, suffix: str, confirmed: bool, logger: logging.Logger | None
+    item: Path, filename_format: str, suffix: str, confirmed: bool, logger: logging.Logger | None
 ) -> None:
     m = MediaFile(item)
     # logger.info(f"Processing [blue]{item}[/blue]")

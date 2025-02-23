@@ -21,6 +21,7 @@ from .set_tags import get_set_tags_parser
 from .shift_exif import get_shift_exif_parser
 from .show_exif import get_show_exif_parser
 from .show_tags import get_show_tags_parser
+from .utils import manifest
 from .validate import get_validate_parser
 
 
@@ -77,7 +78,8 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--manifest",
-        help="""Path to a manifest file that stores metadata such as file signature and tags.""",
+        help="""Path to a manifest file that stores metadata such as file signature and tags.
+            Default to ~/.home-media-organizer/manifest.db.""",
     )
     parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
@@ -135,9 +137,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)
-    # if args if specified, manifest should be specified.
-    if (args.with_tags or args.without_tags) and not args.manifest:
-        raise ValueError("A manifest file is needed if with_tags or without_tags is specified.")
+    manifest.init_db(args.manifest)
     return args
 
 

@@ -17,7 +17,7 @@ from PIL import Image, UnidentifiedImageError
 from .utils import OrganizeOperation, get_response
 
 
-def image_date(filename: str) -> str | None:
+def image_date(filename: Path) -> str | None:
     try:
         i = Image.open(filename)
         date = None
@@ -30,7 +30,7 @@ def image_date(filename: str) -> str | None:
         return None
 
 
-def exiftool_date(filename: str) -> str | None:
+def exiftool_date(filename: Path) -> str | None:
     with ExifToolHelper() as e:
         metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
@@ -44,9 +44,9 @@ def exiftool_date(filename: str) -> str | None:
         return None
 
 
-def filename_date(filename: str) -> str:
-    ext = os.path.splitext(filename)[-1]
-    basename = os.path.basename(filename)
+def filename_date(filename: Path) -> str:
+    ext = filename.suffix
+    basename = filename.name
 
     if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, basename):
         fn, ext = os.path.splitext(basename)
@@ -156,10 +156,11 @@ date_func.update({x.upper(): y for x, y in date_func.items()})
 
 class MediaFile:
 
-    def __init__(self: "MediaFile", filename: str) -> None:
-        self.fullname = os.path.abspath(filename)
-        self.dirname, self.filename = os.path.split(self.fullname)
-        self.ext = os.path.splitext(self.filename)[-1]
+    def __init__(self: "MediaFile", filename: Path) -> None:
+        self.fullname = filename.resolve()
+        self.dirname = filename.parent
+        self.filename = filename.name
+        self.ext: str = filename.suffix
         self.date: str | None = None
 
     @property
@@ -231,7 +232,7 @@ class MediaFile:
 
     def intended_path(
         self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
-    ) -> str:
+    ) -> Path:
         date = self.get_date()
         try:
             filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
@@ -242,7 +243,7 @@ class MediaFile:
                 raise ValueError(f"Invalid date {date}")
         except Exception:
             return self.dirname
-        return str(Path(root) / subdir)
+        return Path(root) / subdir
 
     def shift_exif(
         self: "MediaFile",
@@ -461,7 +462,7 @@ class MediaFile:
         attempt: int = 0,
     ) -> None:
         intended_path = self.intended_path(media_root, dir_pattern, album, album_sep)
-        if self.fullname.startswith(intended_path):
+        if intended_path.is_relative_to(self.fullname):
             return
 
         if attempt > 10:
@@ -469,7 +470,7 @@ class MediaFile:
                 logger.info("Failed to rename after 10 attempts. There must be something wrong.")
             return
         elif attempt > 0:
-            n, e = os.path.splitext(self.filename)
+            n, e = Path(self.filename).stem, Path(self.filename).suffix
             nn = f"{n}_{attempt}{e}"
         else:
             nn = self.filename

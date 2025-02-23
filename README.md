@@ -72,7 +72,6 @@ Table of Contents:
 [default]
 search-paths = ['/Volumes/NAS/incoming', '/Volumes/NAS/MyPictures']
 media-root = '/Volumes/NAS/MyPictures'
-manifest = '/Volumes/NAS/MyPictures/manifest.db'
 
 [rename]
 format = '%Y%m%d_%H%M%S'
