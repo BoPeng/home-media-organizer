@@ -1,13 +1,25 @@
 import argparse
 import logging
 from collections import defaultdict
+from enum import Enum
 from multiprocessing import Pool
 from typing import List
 
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import CompareBy, CompareOutput, clear_cache, get_file_hash
+from .utils import clear_cache, get_file_hash
+
+
+class CompareBy(Enum):
+    CONTENT = "content"
+    NAME_AND_CONTENT = "name_and_content"
+
+
+class CompareOutput(Enum):
+    A = "A"
+    B = "B"
+    BOTH = "Both"
 
 
 #

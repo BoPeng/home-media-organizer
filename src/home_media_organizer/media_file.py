@@ -404,6 +404,7 @@ class MediaFile:
                         f"Rename {self.fullname} to an existing file {new_file}"
                     ):
                         os.remove(self.fullname)
+                        manifest.remove(self.fullname)
                         if logger is not None:
                             logger.info(
                                 f"Removed duplicated file [blue]{self.fullname.name}[/blue]"
@@ -415,6 +416,7 @@ class MediaFile:
                 f"Rename [blue]{self.fullname}[/blue] to [blue]{new_file.name}[/blue]"
             ):
                 os.rename(self.fullname, new_file)
+                manifest.rename(self.fullname, new_file)
                 if logger is not None:
                     logger.info(
                         f"Renamed [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
@@ -459,6 +461,7 @@ class MediaFile:
                     if filecmp.cmp(self.fullname, new_file, shallow=False):
                         if operation == OrganizeOperation.MOVE:
                             os.remove(self.fullname)
+                            manifest.remove(self.fullname)
                             if logger is not None:
                                 logger.info(f"Remove duplicated file {self.fullname}")
                         else:
@@ -477,12 +480,14 @@ class MediaFile:
                     )
                 if operation == OrganizeOperation.COPY:
                     shutil.copy2(self.fullname, new_file)
+                    manifest.copy(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
                             f"Copied [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
                         )
                 else:
                     shutil.move(self.fullname, new_file)
+                    manifest.rename(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
                             f"Moved [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"

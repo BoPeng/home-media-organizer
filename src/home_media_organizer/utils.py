@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from logging import Logger
+from multiprocessing import Lock
 from pathlib import Path
 from typing import Any, Dict, Generator, List
 
@@ -21,17 +22,6 @@ from pyparsing import (
     opAssoc,
 )
 from rich.prompt import Prompt
-
-
-class CompareBy(Enum):
-    CONTENT = "content"
-    NAME_AND_CONTENT = "name_and_content"
-
-
-class CompareOutput(Enum):
-    A = "A"
-    B = "B"
-    BOTH = "Both"
 
 
 class OrganizeOperation(Enum):
@@ -153,12 +143,47 @@ class ManifestItem:
         return f"{self.filename}\t{self.hash_value}\t{' '.join(self.tags.keys())}"
 
 
+class ProcessSafeCache:
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._cache: Dict[Path, ManifestItem] = {}
+
+    def get(self, key: Path, default: ManifestItem | Any = None) -> ManifestItem | Any:
+        with self._lock:
+            return self._cache.get(key, default)
+
+    def set(self, key: Path, value: ManifestItem) -> None:
+        with self._lock:
+            self._cache[key] = value
+
+    def pop(self, key: Path, default: ManifestItem | Any = None) -> ManifestItem | None:
+        with self._lock:
+            return self._cache.pop(key, default)
+
+    def __getitem__(self, key: Path) -> ManifestItem:
+        with self._lock:
+            return self._cache[key]
+
+    def __setitem__(self, key: Path, value: ManifestItem) -> None:
+        with self._lock:
+            self._cache[key] = value
+
+    def __contains__(self, key: Path) -> bool:
+        with self._lock:
+            return key in self._cache
+
+    def __ior__(self, other: Dict[Path, ManifestItem]) -> "ProcessSafeCache":
+        with self._lock:
+            self._cache.update(other)
+            return self
+
+
 class Manifest:
     def __init__(
         self: "Manifest", filename: str | None = None, logger: Logger | None = None
     ) -> None:
         self.logger = logger
-        self.cache: Dict[Path, ManifestItem] = {}
+        self.cache: ProcessSafeCache = ProcessSafeCache()
         self.init_db(filename)
 
     def init_db(self: "Manifest", filename: str | None) -> None:
@@ -176,6 +201,7 @@ class Manifest:
         conn = sqlite3.connect(self.database_path)
         # Enable JSON support
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")  # Set busy timeout to 30 seconds
         # Register JSON functions for better JSON handling
         sqlite3.register_adapter(dict, json.dumps)
         sqlite3.register_converter("JSON", json.loads)
@@ -290,6 +316,54 @@ class Manifest:
             self.cache.pop(filename, None)
             conn.commit()
 
+    def rename(self: "Manifest", old_name: Path, new_name: Path) -> None:
+        abs_old_name = old_name.resolve()
+        abs_new_name = new_name.resolve()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE manifest
+                SET filename = ?
+                WHERE filename = ?
+                """,
+                (abs_new_name, abs_old_name),
+            )
+            conn.commit()
+            self.cache.pop(old_name, None)
+            self.cache.pop(new_name, None)
+
+    def remove(self: "Manifest", filename: Path) -> None:
+        abs_path = filename.resolve()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DELETE FROM manifest
+                WHERE filename = ?
+                """,
+                (abs_path,),
+            )
+            conn.commit()
+            self.cache.pop(filename, None)
+
+    def copy(self: "Manifest", old_name: Path, new_name: Path) -> None:
+        abs_old_name = old_name.resolve()
+        abs_new_name = new_name.resolve()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO manifest (filename, hash_value, tags)
+                SELECT ?, hash_value, tags
+                FROM manifest
+                WHERE filename = ?
+                """,
+                (abs_new_name, abs_old_name),
+            )
+            conn.commit()
+            self.cache.pop(new_name, None)
+
     def remove_tags(self: "Manifest", filename: Path, tags: List[str]) -> None:
         abs_path = filename.resolve()
         with self._get_connection() as conn:
@@ -319,7 +393,9 @@ class Manifest:
                 (tag_name,),
             )
             res = {
-                row[0]: ManifestItem(filename=row[0], hash_value=row[1], tags=json.loads(row[2]))
+                Path(row[0]): ManifestItem(
+                    filename=row[0], hash_value=row[1], tags=json.loads(row[2])
+                )
                 for row in cursor.fetchall()
             }
             self.cache |= res

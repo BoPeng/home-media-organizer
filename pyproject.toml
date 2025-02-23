@@ -114,6 +114,7 @@ ignore = [
   "B007",
   "D415",
   "ANN401",
+  "D105",
   "ERA001", # commented code
   "G004",
   "S101",   # use of assert
