@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from logging import Logger
-from typing import Any, Dict, Generator, List, Type, TypeVar
+from typing import Any, Dict, Generator, Generic, List, Tuple, Type, TypeVar, cast
 
 import numpy as np
 import rich
@@ -365,14 +365,14 @@ def get_age_label(age: int) -> str:
 TClassifier = TypeVar("TClassifier", bound="Classifier")
 
 
-class Classifier:
+class Classifier(Generic[TClassifier]):
     name = "generic"
 
     def __init__(
         self,
         threshold: float | None,
         top_k: int | None,
-        tags: List[str] | None,
+        tags: Tuple[str] | None,
         logger: Logger | None,
     ) -> None:
         self.threshold = threshold
@@ -380,13 +380,13 @@ class Classifier:
         self.tags = tags
         self.logger = logger
 
-    def _cache_key(self, filename: str) -> str:
+    def _cache_key(self, filename: str) -> Tuple[str, str]:
         return (self.name, filename)
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         raise NotImplementedError()
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         raise NotImplementedError()
 
     def classify(self, filename: str) -> Dict[str, Any]:
@@ -401,16 +401,16 @@ class Classifier:
 class NudeNetClassifier(Classifier):
     name = "nudenet"
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         detector = NudeDetector()
         try:
-            return detector.detect(filename)
+            return cast(List[Dict[str, Any]], detector.detect(filename))
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error classifying {filename}: {e}")
-            return {"error": str(e)}
+            return []
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             x["class"]: {k: v for k, v in x.items() if k != "class"} | {"model": self.name}
             for x in res
@@ -423,15 +423,15 @@ class NudeNetClassifier(Classifier):
 class AgeClassifier(Classifier):
     name = "age"
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         try:
-            return DeepFace.analyze(img_path=filename, actions=["age"])
+            return cast(List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["age"]))
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error classifying {filename}: {e}")
-            return {"error": str(e)}
+            return []
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             get_age_label(x["age"]): x | {"model": self.name}
             for x in res
@@ -442,15 +442,17 @@ class AgeClassifier(Classifier):
 class GenderClassifier(Classifier):
     name = "gender"
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         try:
-            return DeepFace.analyze(img_path=filename, actions=["gender"])
+            return cast(
+                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["gender"])
+            )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error classifying {filename}: {e}")
-            return {"error": str(e)}
+            return []
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             x["dominant_gender"]: {x: np_to_scalar(y) for x, y in x.items()} | {"model": self.name}
             for x in res
@@ -466,15 +468,17 @@ class GenderClassifier(Classifier):
 class RaceClassifier(Classifier):
     name = "race"
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         try:
-            return DeepFace.analyze(img_path=filename, actions=["race"])
+            return cast(
+                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["race"])
+            )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error classifying {filename}: {e}")
-            return {"error": str(e)}
+            return []
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             x["dominant_race"]: {x: np_to_scalar(y) for x, y in x.items()} | {"model": self.name}
             for x in res
@@ -490,15 +494,17 @@ class RaceClassifier(Classifier):
 class EmotionClassifier(Classifier):
     name = "emotion"
 
-    def _classify(self, filename: str) -> Dict[str, Any]:
+    def _classify(self, filename: str) -> List[Dict[str, Any]]:
         try:
-            return DeepFace.analyze(img_path=filename, actions=["emotion"])
+            return cast(
+                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["emotion"])
+            )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error classifying {filename}: {e}")
-            return {"error": str(e)}
+            return []
 
-    def _filter_tags(self, res: Dict[str, Any]) -> Dict[str, Any]:
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             x["dominant_emotion"]: {x: np_to_scalar(y) for x, y in x.items()}
             | {"model": self.name}
@@ -512,7 +518,7 @@ class EmotionClassifier(Classifier):
         }
 
 
-def get_classifier_class(model_name: str) -> Type[TClassifier]:
+def get_classifier_class(model_name: str) -> Type[Classifier]:
     return {
         NudeNetClassifier.name: NudeNetClassifier,
         AgeClassifier.name: AgeClassifier,
