@@ -5,7 +5,6 @@ from multiprocessing import Pool
 from typing import List, Tuple, cast
 
 import rich
-from deepface import DeepFace  # type: ignore
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
@@ -22,6 +21,8 @@ def verify_files(
     filename, benchmark_files, threshold, logger = params
     if benchmark_files is None:
         return filename, True
+    from deepface import DeepFace  # type: ignore
+
     for benchmark_file in benchmark_files:
         res = DeepFace.verify(img1_path=filename, img2_path=benchmark_file)
         if logger is not None:
@@ -46,7 +47,7 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         metadata[k] = v
     tags = {x: metadata for x in args.tags}
 
-    with Pool(1) as pool:
+    with Pool(args.jobs or None) as pool:
         for item, match in tqdm(
             pool.imap(
                 verify_files,
@@ -82,8 +83,7 @@ def get_set_tags_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "set-tags",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        # parents=[parent_parser],
-        help="Tag medias according to fixed tags, potentially for media files meeting certain criteria",
+        help="Tag all or similar media files",
     )
     parser.add_argument("--tags", nargs="*", help="Tags to be set to medis files")
     parser.add_argument(

@@ -29,9 +29,8 @@ def get_shift_exif_parser(subparsers: argparse._SubParsersAction) -> argparse.Ar
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "shift-exif",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Shift the date related metadata in EXIF.",
+        help="Shift the date EXIF of media files",
     )
     parser.add_argument(
         "--years",

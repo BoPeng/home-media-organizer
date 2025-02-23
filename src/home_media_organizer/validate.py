@@ -4,17 +4,46 @@ import os
 from multiprocessing import Pool
 from typing import Tuple
 
+import rich
+from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import (
-    Manifest,
-    calculate_file_hash,
-    clear_cache,
-    get_response,
-    jpeg_openable,
-    mpg_playable,
-)
+from .utils import Manifest, cache, calculate_file_hash, clear_cache, get_response
+
+try:
+    import ffmpeg  # type: ignore
+except ImportError:
+    ffmpeg = None
+
+
+@cache.memoize(tag="validate")
+def jpeg_openable(file_path: str) -> bool:
+    try:
+        with Image.open(file_path) as img:
+            img.verify()  # verify that it is, in fact an image
+            return True
+    except UnidentifiedImageError:
+        return False
+
+
+@cache.memoize(tag="validate")
+def mpg_playable(file_path: str) -> bool:
+    if not ffmpeg:
+        rich.print("[red]ffmpeg not installed, skip[/red]")
+        return True
+    try:
+        # Try to probe the file using ffmpeg
+        probe = ffmpeg.probe(file_path)
+
+        # Check if 'streams' exist in the probe result
+        if "streams" in probe:
+            video_streams = [s for s in probe["streams"] if s["codec_type"] == "video"]
+            if len(video_streams) > 0:
+                return True
+        return False
+    except ffmpeg.Error:
+        return False
 
 
 #
@@ -38,7 +67,7 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
         manifest = Manifest(args.manifest, logger=logger)
 
     if args.confirmed or not args.remove:
-        with Pool() as pool:
+        with Pool(args.jobs or None) as pool:
             # get file size
             for item, new_hash, corrupted in tqdm(
                 pool.imap(check_media_file, iter_files(args)),
@@ -83,9 +112,8 @@ def get_validate_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "validate",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Check if media file is corrupted",
+        help="Identify corrupted media files",
     )
     parser.add_argument("--remove", action="store_true", help="If the file if it is corrupted.")
     parser.add_argument(

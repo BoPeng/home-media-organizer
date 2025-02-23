@@ -8,13 +8,13 @@ import shutil
 from datetime import datetime, timedelta
 from logging import Logger
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional
 
 import rich
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
-from .utils import Classifier, OrganizeOperation, get_classifier_class, get_response
+from .utils import OrganizeOperation, get_response
 
 
 def image_date(filename: str) -> str | None:
@@ -525,18 +525,3 @@ class MediaFile:
                     logger,
                     attempt + 1,
                 )
-
-    def classify(
-        self: "MediaFile",
-        models: Tuple[str],
-        threshold: float | None = None,
-        top_k: int | None = None,
-        tags: Tuple[str] | None = None,
-        logger: Logger | None = None,
-    ) -> Dict[str, Any]:
-        res: Dict[str, Any] = {}
-        for model_name in models:
-            model_class: Type[Classifier] = get_classifier_class(model_name)
-            model = model_class(threshold, top_k, tags, logger)
-            res |= model.classify(self.fullname)
-        return res

@@ -35,9 +35,21 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         help="Directories or files to be processed",
     )
     parser.add_argument(
-        "--search-paths",
-        nargs="+",
-        help="""Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.""",
+        "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
+    )
+    parser.add_argument(
+        "--with-tags",
+        nargs="*",
+        help="""Process only media files with specified tag, one of the tags if multiple value are provided,
+            or any tag if no value is specified. Logical expressions such as 'baby AND happy' are
+            supported.""",
+    )
+    parser.add_argument(
+        "--without-tags",
+        nargs="*",
+        help="""Process only media files that do not contain specified tag, or any of the tags if multiple
+            values are provided, or without any tag if no value is specified. Logical expressions such as
+            'baby AND happy' is allowed.""",
     )
     parser.add_argument(
         "--with-exif",
@@ -53,23 +65,19 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         """,
     )
     parser.add_argument(
+        "-c",
+        "--config",
+        help="""A configuration file in toml format. The configuration
+        will be merged with configuration from ~/.home-media-organizer/config.toml""",
+    )
+    parser.add_argument(
+        "--search-paths",
+        nargs="+",
+        help="""Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.""",
+    )
+    parser.add_argument(
         "--manifest",
-        help="A manifest file that stores metadata such as file signature and tags.",
-    )
-    parser.add_argument(
-        "--with-tags",
-        nargs="*",
-        help="""Files that match one of the specified tags, or any tag if no value is specified.
-             Logical expressions such as 'baby AND happy' is allowed.""",
-    )
-    parser.add_argument(
-        "--without-tags",
-        nargs="*",
-        help="""Files that does not match any of the specified tags, or without any tag if no value
-            is specified. Logical expressions such as 'baby AND happy' is allowed.""",
-    )
-    parser.add_argument(
-        "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
+        help="""Path to a manifest file that stores metadata such as file signature and tags.""",
     )
     parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
@@ -89,15 +97,8 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "-c",
-        "--config",
-        help="""A configuration file in toml format. The configuration
-        will be merged with configuration from ~/.home-media-organizer/config.toml""",
-    )
-    parser.add_argument(
         "--version", action="version", version="home-media-organizer, version " + __version__
     )
-    # common options for all
     subparsers = parser.add_subparsers(required=True, help="sub-command help")
 
     for subparser in [

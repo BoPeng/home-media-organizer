@@ -37,9 +37,8 @@ def get_rename_parser(subparsers: argparse._SubParsersAction) -> argparse.Argume
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "rename",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Rename files to their intended name, according to EXIF or other information.",
+        help="Rename files to their canonical names",
     )
     parser.add_argument(
         "--format",

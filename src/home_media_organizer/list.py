@@ -21,8 +21,7 @@ def get_list_parser(subparsers: argparse._SubParsersAction) -> argparse.Argument
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "list",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        # # parents=[parent_parser],
-        help="List filename",
+        help="List media files",
     )
 
     parser.set_defaults(func=list_files, command="list")

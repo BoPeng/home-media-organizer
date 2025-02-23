@@ -23,8 +23,8 @@ def get_show_exif_parser(subparsers: argparse._SubParsersAction) -> argparse.Arg
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "show-exif",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        #    # parents=[parent_parser],
-        help="Show all or selected exif information",
+        #
+        help="Show EXIF metadata of media files",
     )
     parser.add_argument("--keys", nargs="*", help="Show all or selected exif")
     parser.add_argument(

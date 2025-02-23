@@ -29,7 +29,7 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
     md5_files = defaultdict(list)
     size_files = defaultdict(list)
 
-    with Pool() as pool:
+    with Pool(args.jobs or None) as pool:
         # get file size
         for filename, filesize in tqdm(
             pool.imap(get_file_size, iter_files(args)), desc="Checking file size"
@@ -69,7 +69,6 @@ def get_dedup_parser(subparsers: argparse._SubParsersAction) -> argparse.Argumen
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "dedup",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Remove duplicated files.",
     )

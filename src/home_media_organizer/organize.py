@@ -33,7 +33,6 @@ def get_organize_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "organize",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Organize files into appropriate folder",
     )

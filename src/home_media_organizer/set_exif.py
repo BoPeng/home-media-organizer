@@ -57,10 +57,8 @@ def get_set_exif_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "set-exif",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="""Set the exif. Unless --overwrite is specified,
-            existing exif will not be overwritten.""",
+        help="""Set EXIF of media files""",
     )
     parser.add_argument(
         "--values",

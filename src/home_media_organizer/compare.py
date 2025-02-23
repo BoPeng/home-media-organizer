@@ -26,7 +26,7 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
     a_files = args.items
     b_files = args.A_and_B or args.A_or_B or args.A_only or args.B_only
 
-    with Pool() as pool:
+    with Pool(args.jobs or None) as pool:
         # get file size
         for filename, md5 in tqdm(
             pool.imap(get_file_hash, iter_files(args, a_files)), desc="Checking A file signature"
@@ -105,9 +105,8 @@ def get_compare_parser(subparsers: argparse._SubParsersAction) -> argparse.Argum
 
     parser_compare: argparse.ArgumentParser = subparsers.add_parser(
         "compare",
-        # parents=[parent_parser],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Remove duplicated files.",
+        help="Compare two sets of files",
     )
     parser_compare.add_argument(
         "--no-cache",

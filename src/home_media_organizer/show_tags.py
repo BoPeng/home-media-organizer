@@ -66,8 +66,7 @@ def get_show_tags_parser(subparsers: argparse._SubParsersAction) -> argparse.Arg
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "show-tags",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        # parents=[parent_parser],
-        help="Show all or selected tags",
+        help="Show tags associated with media files",
     )
     parser.add_argument("--all", action="store_true", help="Show all tags in the library.")
     parser.add_argument("--tags", nargs="*", help="Show all or selected tags")

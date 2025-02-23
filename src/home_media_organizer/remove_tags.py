@@ -33,8 +33,7 @@ def get_remove_tags_parser(subparsers: argparse._SubParsersAction) -> argparse.A
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "remove-tags",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        # parents=[parent_parser],
-        help="Tag medias according to fixed tags or some machine learning model",
+        help="Remove tags associated with media files",
     )
     parser.add_argument("--tags", nargs="+", help="Tags to be removed from medis files")
     parser.set_defaults(func=remove_tags, command="remove_tags")
