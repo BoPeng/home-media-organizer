@@ -3,6 +3,8 @@ import fnmatch
 import os
 import sys
 import threading
+from logging import Logger
+from pathlib import Path
 from queue import Queue
 from typing import Any, Callable, Dict, Generator, List
 
@@ -11,16 +13,18 @@ from exiftool import ExifToolHelper  # type: ignore
 from tqdm import tqdm  # type: ignore
 
 from .media_file import date_func
-from .utils import Manifest
+from .utils import manifest
 
 
 def iter_files(
-    args: argparse.Namespace, items: List[str] | None = None
-) -> Generator[str, None, None]:
-    def allowed_filetype(filename: str) -> bool:
+    args: argparse.Namespace,
+    items: List[str] | None = None,
+    logger: Logger | None = None,
+) -> Generator[Path, None, None]:
+    def allowed_filetype(filename: Path) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
-        if os.path.splitext(filename)[-1] not in date_func:
+        if filename.suffix.lower() not in date_func:
             return False
         return True
 
@@ -59,23 +63,27 @@ def iter_files(
                     match = False
         return match
 
-    manifest: Manifest = Manifest(args.manifest)
+    if args.with_tags is not None:
+        files_with_tags = {x.filename for x in manifest.find_by_tags(args.with_tags)}
+    if args.without_tags is not None:
+        files_with_unwanted_tags = {x.filename for x in manifest.find_by_tags(args.without_tags)}
 
     for item in items or args.items:
         # if item is an absolute path, use it directory
         # if item is an relative path, check current working directory first
         # if not found, check the search path
-        if os.path.isabs(item):
+        item = Path(item)
+        if item.is_absolute():
             pass
-        elif os.path.exists(item):
-            item = os.path.abspath(item)
+        elif item.exists():
+            item = item.resolve()
         elif args.search_paths:
             search_paths = (
                 [args.search_paths] if isinstance(args.search_paths, str) else args.search_paths
             )
             for path in search_paths:
-                if os.path.exists(os.path.join(path, item)):
-                    item = os.path.abspath(os.path.join(path, item))
+                if (Path(path) / item).exists():
+                    item = (Path(path) / item).resolve()
                     break
             else:
                 if len(search_paths) == 1:
@@ -90,38 +98,44 @@ def iter_files(
         else:
             rich.print(f"[red]{item} not found in current directory[/red]")
             sys.exit(1)
-        if os.path.isfile(item):
+        if item.is_file():
             if not allowed_filetype(item):
                 continue
-            if args.with_tags and not any(x in args.with_tags for x in manifest.get_tags(item)):
+            if args.with_tags is not None and item not in files_with_tags:
+                continue
+            if args.without_tags is not None and item in files_with_unwanted_tags:
                 continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
                     metadata = {
                         x: y
-                        for x, y in e.get_metadata(os.path.abspath(item))[0].items()
+                        for x, y in e.get_metadata(item.resolve())[0].items()
                         if not x.startswith("File:")
                     }
                 if not allowed_metadata(metadata):
                     continue
             yield item
         else:
-            if not os.path.isdir(item):
+            if not item.is_dir():
                 rich.print(f"[red]{item} is not a filename or directory[/red]")
                 continue
             for root, _, files in os.walk(item):
+                # if with_tags if specified, check if any of the files_with_tags is under root
+                if args.with_tags is not None and not any(
+                    f.startswith(root) for f in files_with_tags
+                ):
+                    continue
+                rootpath = Path(root)
                 if args.with_exif or args.without_exif:
                     # get exif atll at the same time
                     qualified_files = [
-                        os.path.join(root, f)
+                        rootpath / f
                         for f in files
-                        if allowed_filetype(f)
+                        if allowed_filetype(Path(f))
+                        and (args.with_tags is None or rootpath / f in files_with_tags)
                         and (
-                            not args.with_tags
-                            or any(
-                                x in args.with_tags
-                                for x in manifest.get_tags(os.path.join(root, f))
-                            )
+                            args.without_tags is None
+                            or rootpath / f not in files_with_unwanted_tags
                         )
                     ]
                     if not qualified_files:
@@ -135,12 +149,15 @@ def iter_files(
                                 yield qualified_file
                 else:
                     for f in files:
-                        if args.with_tags and not any(
-                            x in args.with_tags for x in manifest.get_tags(os.path.join(root, f))
+                        if (
+                            args.with_tags is not None and rootpath / f not in files_with_tags
+                        ) or (
+                            args.without_tags is not None
+                            and rootpath / f in files_with_unwanted_tags
                         ):
                             continue
-                        if allowed_filetype(f):
-                            yield os.path.join(root, f)
+                        if allowed_filetype(Path(f)):
+                            yield rootpath / f
 
 
 class Worker(threading.Thread):
@@ -168,6 +185,6 @@ def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
         t.start()
 
     for item in (pbar := tqdm(iter_files(args))):
-        pbar.set_description(f"Processing {os.path.basename(item)}")
+        pbar.set_description(f"Processing {item.name}")
         q.put(item)
     q.join()
