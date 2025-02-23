@@ -219,6 +219,14 @@ hmo set-tags 2009/2009-10/ --tags vacation hawaii
 
 The command by default adds tags to the media files. You can replace all existing tags with specified tags with option `--overwrite`. If you would like to remove a set of tags, use command `hmo unset-tags`.
 
+The `set-tags` command can also be used to tag photos that are similar to each other, for example from the same person. To do this, you need to first identify a few example photos as the seed photo, and run
+
+```sh
+hmo set-tags 2009/ --tags Patrick --if-similar-to patrick01.jpg patrick02.jpg
+```
+
+With this command, _home-media-organizer_ will use a face recognition algorithm to compare all pictures under `2009` with these two pictures, and tag them with `Patrick` if the pictures contains faces of patrick. The default similarity score is `0.9` but you can adjust it with options like `--threshold 0.75` to allow less-similar photos to be tagged.
+
 ### `hmo unset-tags`: Remove specified tags from media files
 
 The following command remove the tag `vacation` from specified files but leaves other tags untouched.
