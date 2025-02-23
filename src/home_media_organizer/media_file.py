@@ -516,3 +516,17 @@ class MediaFile:
             manifest.add_tags(self.fullname, tags)
         if logger is not None:
             logger.info(f"Added tags {tags} to [blue]{self.filename}[/blue]")
+
+    def remove_tags(
+        self: "MediaFile",
+        tags: List[str],
+        confirmed: bool = False,
+        logger: Logger | None = None,
+    ) -> None:
+        if not confirmed and not get_response(
+            f"Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"
+        ):
+            return
+        manifest.remove_tags(self.fullname, tags)
+        if logger is not None:
+            logger.info(f"Removed tags {tags} from [blue]{self.filename}[/blue]")
