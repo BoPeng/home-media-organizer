@@ -1,8 +1,8 @@
 import argparse
 import logging
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from .home_media_organizer import iter_files
 from .media_file import MediaFile
@@ -30,7 +30,7 @@ def set_exif_data(args: argparse.Namespace, logger: logging.Logger | None) -> No
         # from filename?
         if args.from_filename:
             try:
-                date = extract_date_from_filename(os.path.basename(m.filename), args.from_filename)
+                date = extract_date_from_filename(Path(m.filename).name, args.from_filename)
                 for k in args.keys:
                     values[k] = date.strftime("%Y:%m:%d %H:%M:%S")
             except ValueError:

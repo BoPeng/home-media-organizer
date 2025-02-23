@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 from collections import defaultdict
 from multiprocessing import Pool
 from typing import List
@@ -35,8 +34,8 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
                 a_sig_to_files[md5].append(filename)
                 a_file_to_sig[filename] = md5
             else:
-                a_sig_to_files[(md5, os.path.basename(filename))].append(filename)
-                a_file_to_sig[filename] = (md5, os.path.basename(filename))
+                a_sig_to_files[(md5, filename.name)].append(filename)
+                a_file_to_sig[filename] = (md5, filename.name)
         #
         for filename, md5 in tqdm(
             pool.imap(get_file_hash, iter_files(args, b_files)), desc="Checking B file signature"
@@ -45,8 +44,8 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
                 b_sig_to_files[md5].append(filename)
                 b_file_to_sig[filename] = md5
             else:
-                b_sig_to_files[(md5, os.path.basename(filename))].append(filename)
-                b_file_to_sig[filename] = (md5, os.path.basename(filename))
+                b_sig_to_files[(md5, filename.name)].append(filename)
+                b_file_to_sig[filename] = (md5, filename.name)
 
     def print_files(files_a: List[str], files_b: List[str]) -> None:
         if args.output == CompareOutput.A.value:

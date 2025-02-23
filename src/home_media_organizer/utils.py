@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -204,7 +203,7 @@ class Manifest:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT filename, hash_value, tags FROM manifest WHERE filename = ?",
-                (os.path.abspath(filename),),
+                (filename.resolve(),),
             )
             row = cursor.fetchone()
             if row:

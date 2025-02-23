@@ -21,10 +21,10 @@ def iter_files(
     items: List[str] | None = None,
     logger: Logger | None = None,
 ) -> Generator[Path, None, None]:
-    def allowed_filetype(filename: Path | str) -> bool:
+    def allowed_filetype(filename: Path) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             return False
-        if os.path.splitext(filename)[-1] not in date_func:
+        if filename.suffix.lower() not in date_func:
             return False
         return True
 
@@ -131,7 +131,7 @@ def iter_files(
                     qualified_files = [
                         rootpath / f
                         for f in files
-                        if allowed_filetype(f)
+                        if allowed_filetype(Path(f))
                         and (args.with_tags is None or rootpath / f in files_with_tags)
                         and (
                             args.without_tags is None
@@ -156,7 +156,7 @@ def iter_files(
                             and rootpath / f in files_with_unwanted_tags
                         ):
                             continue
-                        if allowed_filetype(f):
+                        if allowed_filetype(Path(f)):
                             yield rootpath / f
 
 
@@ -185,6 +185,6 @@ def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
         t.start()
 
     for item in (pbar := tqdm(iter_files(args))):
-        pbar.set_description(f"Processing {os.path.basename(item)}")
+        pbar.set_description(f"Processing {item.name}")
         q.put(item)
     q.join()

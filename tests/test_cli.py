@@ -1,14 +1,11 @@
 """Tests for `home_media_organizer`.cli module."""
 
-import os
-import pathlib
 import shlex
 import subprocess
+from pathlib import Path
 from typing import Callable, Dict, List
 
 import pytest
-from PIL import Image
-from pytest import TempPathFactory
 
 import home_media_organizer
 from home_media_organizer import cli
@@ -46,46 +43,6 @@ def test_parse_args(command: str, options: Dict) -> None:
         assert getattr(args, k) == v
 
 
-@pytest.fixture(scope="session")
-def config_file(tmp_path_factory: TempPathFactory) -> Callable:
-    def generate_config_file(rename_format: str = "%Y%m%d_%H%M%S") -> str:
-        fn = tmp_path_factory.mktemp("config") / "test.toml"
-        with open(fn, "w") as f:
-            f.write(
-                f"""\
-[rename]
-format = "{rename_format}"
-"""
-            )
-        return str(fn)
-
-    return generate_config_file
-
-
-@pytest.fixture(scope="session")
-def image_file(tmp_path_factory: TempPathFactory) -> Callable:
-    def _generate_image_file(
-        filename: str = "test.jpg", exif: Dict[str, str] | None = None, valid: bool = True
-    ) -> str:
-        fn = tmp_path_factory.mktemp("image") / filename
-        if valid:
-            width, height = 100, 100
-            color = (1, 2, 5)
-            image = Image.new("RGB", (width, height), color)
-            image.save(fn, "JPEG")
-        else:
-            with open(fn, "w") as f:
-                f.write("not an image")
-
-        if exif:
-            MediaFile(fn).set_exif(exif, override=True, confirmed=True)
-            for k, v in exif.items():
-                assert MediaFile(fn).exif[k] == v
-        return str(fn)
-
-    return _generate_image_file
-
-
 def test_config(config_file: Callable) -> None:
     """Test using --config to assign command line arguments."""
     cfg = config_file()
@@ -100,7 +57,7 @@ def test_list(image_file: Callable) -> None:
     fn = image_file()
     result = subprocess.run(["hmo", "list", fn], capture_output=True, text=True)
     assert result.returncode == 0
-    assert os.path.basename(fn) in result.stdout
+    assert fn.name in result.stdout
 
 
 def test_list_with_exif(image_file: Callable) -> None:
@@ -115,7 +72,7 @@ def test_list_with_exif(image_file: Callable) -> None:
         text=True,
     )
     assert result.returncode == 0
-    assert os.path.basename(fn) in result.stdout
+    assert fn.name in result.stdout
     # list files without exif
     result = subprocess.run(
         ["hmo", "list", fn, "--without-exif", "EXIF:DateTimeOriginal"],
@@ -123,7 +80,7 @@ def test_list_with_exif(image_file: Callable) -> None:
         text=True,
     )
     assert result.returncode == 0
-    assert os.path.basename(fn) not in result.stdout
+    assert fn.name not in result.stdout
 
 
 def test_list_with_file_types(image_file: Callable) -> None:
@@ -137,7 +94,7 @@ def test_list_with_file_types(image_file: Callable) -> None:
         text=True,
     )
     assert result.returncode == 0
-    assert os.path.basename(fn) in result.stdout
+    assert fn.name in result.stdout
     #
     result = subprocess.run(
         ["hmo", "list", fn, "--file-types", "*.mp4"],
@@ -145,7 +102,7 @@ def test_list_with_file_types(image_file: Callable) -> None:
         text=True,
     )
     assert result.returncode == 0
-    assert os.path.basename(fn) not in result.stdout
+    assert fn.name not in result.stdout
 
 
 def test_show_exif(image_file: Callable) -> None:
@@ -322,30 +279,8 @@ def test_rename(image_file: Callable, pattern: str, suffix: str, filename: str) 
         text=True,
     )
     assert result.returncode == 0
-    new_file = os.path.join(os.path.dirname(fn), filename)
-    assert os.path.isfile(new_file)
-
-
-#
-# this test fails for unknown reason
-#
-# def test_rename_with_config(config_file, image_file: str) -> None:
-#     """Test rename command."""
-#     cfg = config_file(rename_format="%Y-%m-%d.%H%M%S-test")
-#     exif = {"EXIF:DateTimeOriginal": "2022:01:01 12:00:00"}
-#     fn = image_file(exif=exif)
-#     #
-#     with open(cfg, "r") as f:
-#         print(f.read())
-#     # do not specify --format from command line
-#     result = subprocess.run(
-#         ["hmo", "rename", fn, "--config", cfg, "--yes"],
-#         capture_output=True,
-#         text=True,
-#     )
-#     assert result.returncode == 0
-#     new_file = os.path.join(os.path.dirname(fn), "2022-01-01.120000-test.jpg")
-#     assert os.path.isfile(new_file)
+    new_file = fn.parent / filename
+    assert new_file.is_file()
 
 
 @pytest.mark.parametrize(
@@ -359,7 +294,7 @@ def test_rename(image_file: Callable, pattern: str, suffix: str, filename: str) 
 )
 def test_organize_file(
     image_file: Callable,
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     dir_pattern: str,
     album: str,
     album_sep: str,
@@ -388,5 +323,5 @@ def test_organize_file(
         text=True,
     )
     assert result.returncode == 0
-    new_file = tmp_path / new_dir / os.path.basename(fn)
-    assert os.path.isfile(new_file)
+    new_file = tmp_path / new_dir / fn.name
+    assert new_file.is_file()

@@ -1,5 +1,5 @@
-import os
 import sys
+from pathlib import Path
 from typing import ClassVar
 
 if sys.version_info >= (3, 11):
@@ -11,10 +11,8 @@ from .utils import merge_dicts
 
 
 class Config:
-    default_config_file = os.path.join(
-        os.path.expanduser("~"), ".home-media-organizer", "config.toml"
-    )
-    local_config_file = os.path.join(os.getcwd(), ".home-media-organizer.toml")
+    default_config_file = Path.home() / ".home-media-organizer" / "config.toml"
+    local_config_file = Path.cwd() / ".home-media-organizer.toml"
 
     allowed_commands: ClassVar = [
         "list",
@@ -28,10 +26,10 @@ class Config:
         "cleanup",
     ]
 
-    def __init__(self, config_file: str) -> None:
+    def __init__(self, config_file: Path) -> None:
         configs = []
         for cfg in [self.default_config_file, self.local_config_file, config_file]:
-            if not cfg or not os.path.isfile(cfg):
+            if not cfg or not cfg.is_file():
                 continue
             try:
                 with open(cfg, "rb") as f:
