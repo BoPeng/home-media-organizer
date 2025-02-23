@@ -1,7 +1,6 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
 from typing import List, Optional
 
 from rich.console import Console
@@ -124,7 +123,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
 
     # load configuration
     args = parser.parse_args(arg_list)
-    config = Config(Path(args.config)).config
+    config = Config(args.config).config
     # assign config to args
     if "default" in config:
         for k, v in config["default"].items():

@@ -26,10 +26,10 @@ class Config:
         "cleanup",
     ]
 
-    def __init__(self, config_file: Path) -> None:
+    def __init__(self, config_file: str | None) -> None:
         configs = []
         for cfg in [self.default_config_file, self.local_config_file, config_file]:
-            if not cfg or not cfg.is_file():
+            if not cfg or not Path(cfg).is_file():
                 continue
             try:
                 with open(cfg, "rb") as f:
