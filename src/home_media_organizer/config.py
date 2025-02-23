@@ -11,8 +11,8 @@ from .utils import merge_dicts
 
 
 class Config:
-    default_config_file = Path.home() / ".home-media-organizer" / "config.toml"
-    local_config_file = Path.cwd() / ".home-media-organizer.toml"
+    default_config_file: Path = Path.home() / ".home-media-organizer" / "config.toml"
+    local_config_file: Path = Path.cwd() / ".home-media-organizer.toml"
 
     allowed_commands: ClassVar = [
         "list",
