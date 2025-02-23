@@ -30,6 +30,7 @@ Table of Contents:
   - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
   - [Organize files](#organize-files)
 - [Advanced Topics](#advanced-topics)
+  - [Compare against a separate collection of files](#compare-against-a-separate-collection-of-files)
   - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
   - [Filtering by tags](#filtering-by-tags)
 - [TODO](#todo)
@@ -163,6 +164,38 @@ to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
 The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
 ## Advanced Topics
+
+### Compare against a separate collection of files
+
+You may have a separate copy of files, for example, files backed up to DVD or some other media, or files dumped from your camera a while ago, and you would like to know if any files have been changed, removed, or if they have been properly organized into your home library.
+
+Such problems involves the comparison between two sets of files and are performed by command `hmo compare`. This command accepts parameters such as `--A-and-B`, `--A-only`, `--B-only`, and `--A-or-B` where `A` refers to the targets of `hmo compare` command and `B` refers to the files or directories after parameter `--B-only`.
+
+For example
+
+```sh
+hmo compare 2025 --B-only my_local_directory
+```
+
+list files under `my_local_directory` that are not under `2025`. This command compares based on the **content of the files** so it does not matter if the files have been renamed before copying into `2025`.
+
+If you would like to include files that have been renamed as `--B-only`, use the `--by` option:
+
+```sh
+hmo compare 2025 --B-only my_local_directory --by name_and_content
+```
+
+If you would like to see how the files have been mapped between two sets of files, you can do something like
+
+```sh
+hmo compare 2025 --A-and-B my_local_directory
+```
+
+The output will be similar to
+
+```text
+2025/20250102_020305.jpg=my_local_directory/IMG_4885.jpg
+```
 
 ### Modifying `File:FileModifyDate`
 

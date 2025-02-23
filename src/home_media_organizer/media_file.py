@@ -512,7 +512,7 @@ class MediaFile:
         logger: Logger | None = None,
     ) -> None:
         if not confirmed and not get_response(
-            f"Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"
+            f"""Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"""
         ):
             return
         if overwrite:
