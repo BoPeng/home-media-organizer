@@ -17,7 +17,7 @@ from PIL import Image, UnidentifiedImageError
 from .utils import OrganizeOperation, get_response
 
 
-def image_date(filename: str) -> str | None:
+def image_date(filename: Path) -> str | None:
     try:
         i = Image.open(filename)
         date = None
@@ -30,7 +30,7 @@ def image_date(filename: str) -> str | None:
         return None
 
 
-def exiftool_date(filename: str) -> str | None:
+def exiftool_date(filename: Path) -> str | None:
     with ExifToolHelper() as e:
         metadata = e.get_metadata(filename)[0]
         if "QuickTime:MediaModifyDate" in metadata:
@@ -44,20 +44,18 @@ def exiftool_date(filename: str) -> str | None:
         return None
 
 
-def filename_date(filename: str) -> str:
-    ext = os.path.splitext(filename)[-1]
-    basename = os.path.basename(filename)
+def filename_date(filename: Path) -> str:
+    ext = filename.suffix
+    basename = filename.name
 
     if re.match(r"\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}.\d{2}" + ext, basename):
-        fn, ext = os.path.splitext(basename)
-        return fn.replace("-", "").replace(".", "")
+        return Path(basename).stem.replace("-", "").replace(".", "")
 
     if re.match(
         r"video-?\d{4}\.\d{2}\.\d{2}_\d{2}-\d{2}-\d{2}" + ext,
         basename,
     ):
-        fn, ext = os.path.splitext(basename)
-        return fn.replace("-", "").replace(".", "")[5:]
+        return Path(basename).stem.replace("-", "").replace(".", "")[5:]
 
     matched = re.match(r"(\d{8})[_-](.*)" + ext, basename)
     if matched:
@@ -156,10 +154,11 @@ date_func.update({x.upper(): y for x, y in date_func.items()})
 
 class MediaFile:
 
-    def __init__(self: "MediaFile", filename: str) -> None:
-        self.fullname = os.path.abspath(filename)
-        self.dirname, self.filename = os.path.split(self.fullname)
-        self.ext = os.path.splitext(self.filename)[-1]
+    def __init__(self: "MediaFile", filename: Path) -> None:
+        self.fullname = filename.resolve()
+        self.dirname = filename.parent
+        self.filename = filename.name
+        self.ext: str = filename.suffix
         self.date: str | None = None
 
     @property
@@ -213,7 +212,7 @@ class MediaFile:
     def intended_prefix(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
         date = self.get_date()
         if not date:
-            date = os.path.split(self.filename)[0]
+            date = Path(self.filename).stem
             date = date.replace(":", "").replace(" ", "_")
         try:
             filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
@@ -222,7 +221,7 @@ class MediaFile:
             return filedate.strftime(filename_format)
         except Exception:
             # do not rename
-            return os.path.split(self.filename)[0]
+            return Path(self.filename).stem
 
     def intended_name(
         self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", suffix: str = ""
@@ -231,7 +230,7 @@ class MediaFile:
 
     def intended_path(
         self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
-    ) -> str:
+    ) -> Path:
         date = self.get_date()
         try:
             filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
@@ -242,7 +241,7 @@ class MediaFile:
                 raise ValueError(f"Invalid date {date}")
         except Exception:
             return self.dirname
-        return str(Path(root) / subdir)
+        return Path(root) / subdir
 
     def shift_exif(
         self: "MediaFile",
@@ -304,7 +303,7 @@ class MediaFile:
                         logger.info(f"[magenta]Ignore future date {new_datetime}[/magenta].")
                 elif k == "File:FileModifyDate":
                     if confirmed or get_response(
-                        f"Modify file modified date {os.path.basename(self.fullname)} to {new_datetime}?"
+                        f"Modify file modified date {self.fullname.name} to {new_datetime}?"
                     ):
                         # Convert the new modification time to a timestamp
                         new_mod_time = new_datetime.timestamp()
@@ -324,9 +323,7 @@ class MediaFile:
                         f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
                     )
             #
-            if confirmed or get_response(
-                f"Shift dates of {os.path.basename(self.fullname)} as shown above?"
-            ):
+            if confirmed or get_response(f"Shift dates of {self.fullname.name} as shown above?"):
                 e.set_tags([self.fullname], tags=changes)
 
     def set_exif(
@@ -347,7 +344,7 @@ class MediaFile:
                     continue
                 if k == "File:FileModifyDate":
                     if confirmed or get_response(
-                        f"Modify file modified date {os.path.basename(self.fullname)} to {v}?"
+                        f"Modify file modified date {self.fullname.name} to {v}?"
                     ):
                         try:
                             new_datetime = datetime.strptime(v, "%Y:%m:%d %H:%M:%S")
@@ -415,16 +412,16 @@ class MediaFile:
                 logger.info("Failed to rename after 10 attempts. There must be something wrong.")
             return
         elif attempt > 0:
-            n, e = os.path.splitext(intended_name)
+            n, e = Path(intended_name).stem, Path(intended_name).suffix
             nn = f"{n}_{attempt}{e}"
         else:
             nn = intended_name
 
-        new_file = os.path.join(self.dirname, nn)
+        new_file = self.dirname / nn
 
         try:
-            if os.path.isfile(new_file):
-                if os.path.samefile(self.fullname, new_file):
+            if new_file.is_file():
+                if self.fullname.samefile(new_file):
                     return
                 if filecmp.cmp(self.fullname, new_file, shallow=False):
                     if confirmed or get_response(
@@ -433,18 +430,18 @@ class MediaFile:
                         os.remove(self.fullname)
                         if logger is not None:
                             logger.info(
-                                f"Removed duplicated file [blue]{os.path.basename(self.fullname)}[/blue]"
+                                f"Removed duplicated file [blue]{self.fullname.name}[/blue]"
                             )
                     return
                 return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
 
             if confirmed or get_response(
-                f"Rename [blue]{self.fullname}[/blue] to [blue]{os.path.basename(new_file)}[/blue]"
+                f"Rename [blue]{self.fullname}[/blue] to [blue]{new_file.name}[/blue]"
             ):
                 os.rename(self.fullname, new_file)
                 if logger is not None:
                     logger.info(
-                        f"Renamed [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                        f"Renamed [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
                     )
         except Exception as e:
             return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
@@ -461,7 +458,7 @@ class MediaFile:
         attempt: int = 0,
     ) -> None:
         intended_path = self.intended_path(media_root, dir_pattern, album, album_sep)
-        if self.fullname.startswith(intended_path):
+        if intended_path.is_relative_to(self.fullname):
             return
 
         if attempt > 10:
@@ -469,12 +466,12 @@ class MediaFile:
                 logger.info("Failed to rename after 10 attempts. There must be something wrong.")
             return
         elif attempt > 0:
-            n, e = os.path.splitext(self.filename)
+            n, e = Path(self.filename).stem, Path(self.filename).suffix
             nn = f"{n}_{attempt}{e}"
         else:
             nn = self.filename
 
-        new_file = os.path.join(intended_path, nn)
+        new_file = intended_path / nn
 
         if confirmed or get_response(
             f"{operation.value.capitalize()} [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
@@ -482,7 +479,7 @@ class MediaFile:
             os.makedirs(intended_path, exist_ok=True)
 
             try:
-                if os.path.isfile(new_file):
+                if new_file.is_file():
                     if filecmp.cmp(self.fullname, new_file, shallow=False):
                         if operation == OrganizeOperation.MOVE:
                             os.remove(self.fullname)
@@ -506,13 +503,13 @@ class MediaFile:
                     shutil.copy2(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
-                            f"Copied [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                            f"Copied [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
                         )
                 else:
                     shutil.move(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
-                            f"Moved [blue]{os.path.basename(self.fullname)}[/blue] to [green]{new_file}[/green]"
+                            f"Moved [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
                         )
             except Exception as e:
                 return self.organize(
