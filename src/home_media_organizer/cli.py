@@ -9,7 +9,6 @@ from multiprocessing import Pool
 from typing import Any, Dict, List, Optional, Tuple
 
 import rich
-from pytorchcv.model_provider import get_model as ptcv_get_model  # type: ignore
 from rich.console import Console
 from rich.logging import RichHandler
 from tqdm import tqdm  # type: ignore
@@ -76,7 +75,7 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         elif args.format == "json-details":
             rich.print({"filename": item, "tags": tags})
         elif args.format == "text":
-            rich.print(f"""[cyan]{item}[/cyan]: {" ".join(tags.keys())}""")
+            rich.print(f"""[cyan]{item}[/cyan]: {", ".join(tags.keys())}""")
         elif args.format == "text-details":
             rich.print(f"[yellow]{item}[/yellow]")
             for key, value in tags.items():
@@ -133,11 +132,13 @@ def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None
 
 
 def classify_image(
-    params: Tuple[str, str, float | None, int | None, Tuple[str] | None, logging.Logger | None]
+    params: Tuple[
+        str, Tuple[str], float | None, int | None, Tuple[str] | None, logging.Logger | None
+    ]
 ) -> Tuple[str, Dict[str, Any]]:
-    filename, model, threshold, top_k, tags, logger = params
+    filename, models, threshold, top_k, tags, logger = params
     m = MediaFile(filename)
-    return m.fullname, m.classify(model, threshold, top_k, tags, logger)
+    return m.fullname, m.classify(models, threshold, top_k, tags, logger)
 
 
 def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
@@ -149,13 +150,6 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     manifest = Manifest(args.manifest, logger=logger)
 
     # download the model if needed
-    try:
-        if args.model != "nudenet":
-            ptcv_get_model(args.model, pretrained=True)
-    except Exception as e:
-        rich.print(f"[red]Failed to download model {args.model} from pytorchcv: {e}[/red]")
-        sys.exit(1)
-
     with Pool(1) as pool:
         for item, tags in tqdm(
             pool.imap(
@@ -163,7 +157,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                 {
                     (
                         x,
-                        args.model,
+                        tuple(args.models),
                         args.threshold,
                         args.top_k,
                         (tuple(args.tags) if args.tags is not None else args.tags),
@@ -172,14 +166,16 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                     for x in iter_files(args)
                 },
             ),
-            desc="Validate media",
+            desc="Classifying media",
         ):
             if "error" in tags:
                 if logger is not None:
                     logger.error(f"Error processing {item}: {tags['error']}")
                 continue
+            if not tags:
+                continue
             if logger:
-                logger.info(f"Tagging {item} with {tags}")
+                logger.debug(f"Tagging {item} with {tags}")
             if args.overwrite:
                 manifest.set_tags(item, tags)
             else:
@@ -677,8 +673,10 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         help="Classify photos and assign results as tags to media files.",
     )
     parser_classify.add_argument(
-        "--model",
-        help="Machine learning model used to tag media.",
+        "--models",
+        nargs="+",
+        choices=["nudenet", "age", "gender", "race", "emotion"],
+        help="Machine learning models used to tag media.",
     )
     parser_classify.add_argument(
         "--tags",

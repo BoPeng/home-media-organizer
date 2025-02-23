@@ -35,7 +35,10 @@ ffmpeg-python = "^0.2.0"
 pyexiftool = "^0.5.6"
 nudenet = "^3.4.2"
 Augmentor = "^0.2.12"
-pytorchcv = "^0.0.73"
+ml-dtypes = "^0.4.1"
+numpy = "^2.0.2"
+deepface = "^0.0.93"
+tf-keras = "^2.18.0"
 tomli = { version = "2.2.1", markers = "python_version < '3.11'" }
 
 [tool.poetry.group.dev.dependencies]
@@ -108,6 +111,7 @@ ignore = [
   "D107",
   "B007",
   "D415",
+  "ANN401",
   "ERA001", # commented code
   "G004",
   "S101",   # use of assert

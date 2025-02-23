@@ -11,14 +11,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import rich
-import torch
 from exiftool import ExifToolHelper  # type: ignore
-from nudenet import NudeDetector  # type: ignore
 from PIL import Image, UnidentifiedImageError
-from pytorchcv.model_provider import get_model as ptcv_get_model  # type: ignore
-from torchvision import transforms  # type: ignore
 
-from .utils import OrganizeOperation, get_response
+from .utils import OrganizeOperation, get_classifier_class, get_response
 
 
 def image_date(filename: str) -> str | None:
@@ -532,59 +528,15 @@ class MediaFile:
 
     def classify(
         self: "MediaFile",
-        model: str,
+        models: Tuple[str],
         threshold: float | None = None,
         top_k: int | None = None,
         tags: Tuple[str] | None = None,
         logger: Logger | None = None,
     ) -> Dict[str, Any]:
-        try:
-            if model == "nudenet":
-                detector = NudeDetector()
-                res = detector.detect(self.fullname)
-                # reorganize the result to be "class": {other elements}
-                return {
-                    x["class"]: {k: v for k, v in x.items() if k != "class"}
-                    for x in res
-                    if "class" in x
-                    and (threshold is None or x["score"] > threshold)
-                    and (tags is None or x["class"] in tags)
-                }
-            else:
-                net = ptcv_get_model(model, pretrained=True)
-                net.eval()  # set to evaluation mode
-
-                # load and preprosedd the image
-                img = Image.open(self.fullname).convert("RGB")
-                preprocess = transforms.Compose(
-                    [
-                        transforms.Resize(256),
-                        transforms.CenterCrop(224),
-                        transforms.ToTensor(),
-                        transforms.Normalize(
-                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                        ),
-                    ]
-                )
-                # Preprocess the image
-                img_tensor = preprocess(img)
-                # Add batch dimension
-                img_tensor = img_tensor.unsqueeze(0)
-
-                with torch.no_grad():
-                    output = net(img_tensor)
-                    # Get probabilities
-                    probabilities = torch.nn.functional.softmax(output[0], dim=0)
-                    # Get top K predictions
-                    top_k_probs, top_k_indices = torch.topk(probabilities, top_k or 1)
-
-                return {
-                    str(label.item()): {"score": score.item()}
-                    for label, score in zip(top_k_indices, top_k_probs)
-                    if (threshold is None or score > threshold) and (tags is None or label in tags)
-                }
-
-        except Exception as e:
-            if logger:
-                logger.debug(f"Error processing {self.fullname}: {e}")
-            return {"error": str(e)}
+        res: Dict[str, Any] = {}
+        for model_name in models:
+            model_class = get_classifier_class(model_name)
+            model = model_class(threshold, top_k, tags, logger)
+            res |= model.classify(self.fullname)
+        return res
