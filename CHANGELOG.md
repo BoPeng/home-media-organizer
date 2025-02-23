@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add command `hmo tag` to set specified tag or tags returned by some models
 - Add option `--with-tags` and `--without-tags` to filter files by tags
 - Add option `--manifest` to `hmo validate`
+- Add option `hmo set-tags --if-similar-to`
 
 ## [0.3.6]
 

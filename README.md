@@ -23,10 +23,12 @@ A versatile tool to fix, organize, and maintain your home media library.
 
 Table of Contents:
 
+- [Features](#features)
 - [Installation](#installation)
 - [How to use this tool](#how-to-use-this-tool)
   - [Assumptions](#assumptions)
   - [Configuration file](#configuration-file)
+- [Detailed Usages](#detailed-usages)
   - [`hmo-list`: List all or selected media files](#hmo-list-list-all-or-selected-media-files)
   - [`hmo show-tags`: Show tags assciated with media files](#hmo-show-tags-show-tags-assciated-with-media-files)
   - [`hmo set-tags`: Set tags to media files](#hmo-set-tags-set-tags-to-media-files)
@@ -42,12 +44,24 @@ Table of Contents:
   - [`hmo organize`: Organize media files](#hmo-organize-organize-media-files)
   - [`hmo cleanup`: Clean up library](#hmo-cleanup-clean-up-library)
 - [How to get help](#how-to-get-help)
-- [Special Notes](#special-notes)
+- [Advanced Topics](#advanced-topics)
   - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
-- [More examples](#more-examples)
-  - [Scenario one: video files with correct filename but missing EXIF metadata](#scenario-one-video-files-with-correct-filename-but-missing-exif-metadata)
+  - [Filtering by tags](#filtering-by-tags)
 - [TODO](#todo)
 - [Credits](#credits)
+
+## Features
+
+- **Smart Organization**: Automatically organize photos and videos by date from EXIF data
+- **Duplicate Detection**: Find and remove duplicate media files
+- **Tag Management**: Add, remove, and search media files by custom tags
+- **AI-Powered Classification**:
+  - Face detection and recognition, tag photos with names
+  - Age and gender detection
+  - Content classification (NSFW detection)
+- **EXIF Management**: View, set, and modify EXIF metadata
+- **File Validation**: Detect corrupted media files
+- **Flexible Configuration**: Customizable organization patterns and rules
 
 ## Installation
 
@@ -131,6 +145,8 @@ hmo rename -h
 ```
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
+
+## Detailed Usages
 
 ### `hmo-list`: List all or selected media files
 
