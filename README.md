@@ -199,6 +199,14 @@ filename: tag1 tag2
 
 but you can change the format to `json`, `json-details`, `text-details`, where the details version will output meta information related to tags, such as `score` from classifiers.
 
+Finally, if you just want to see what tags have been used in your library, run
+
+```sh
+hmo show-tags --all
+```
+
+The output is by default in `--format text` format, but you can set it to `--format json-details` to see all tags and their metadata.
+
 ### `hmo set-tags`: Set tags to media files
 
 Unlike `exif` which are part of the media files, tags are stored in a separate database specified with parameter `--manifest`. These tags have a name, and an arbitray set of metadata, which holds values such as `score` for some classifier.
@@ -572,7 +580,7 @@ hmo rename -h
 
 If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
 
-## Special Notes
+## Advanced Topics
 
 ### Modifying `File:FileModifyDate`
 
@@ -609,21 +617,37 @@ You can set the modified date as follows:
 
 However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
 
-## More examples
+### Filtering by tags
 
-### Scenario one: video files with correct filename but missing EXIF metadata
+Options `--with-tags` and `--without-tags` can be used to select media files for all operations if operations `hmo set-tags` and `hmo classify` has been used to set various tags to media files.
+
+You can use command
 
 ```sh
-# use --without-exif to find all media file without `Date` metadata
-
-hmo list 2003 --without-exif '*Date'
-
-# use hmo to show filename and modified date, and see if they match
-hmo show-exif 2003 --without-exif '*Date' --keys File:FileName File:FileModifyDate --format text
-
-# use set-exif --from-filename to modify FileModifyDate
-hmo set-exif 2003 --without-exif '*Date' --from-filename '%Y%m%d_%H%M%S' --keys File:FileModifyDate -y
+hmo show-tags 2009
 ```
+
+to show all files with any tags, or use
+
+```sh
+hmo list 2009 --with-tags happy
+```
+
+to see all pictures with a happy face (classified by `hmo classify --model emotion`).
+
+By default
+
+```sh
+hmo list 2009 --with-tags  baby happy
+```
+
+will show all media files with either a `baby` or a `happy` tag, but you can narrow down the search by photos with happy babies as well
+
+```sh
+hmo list 2009 --with-tags  'baby AND happy'
+```
+
+Conditions such as `baby AND (happy OR sad)` if allowed, and you will need to quote tags if the tags contains special characters.
 
 ## TODO
 

@@ -60,6 +60,22 @@ def show_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         rich.print("[red]No manifest file specified.[/red]")
         sys.exit(1)
     manifest = Manifest(args.manifest, logger=logger)
+    if args.all is True:
+        all_tags = manifest.get_all_tags()
+        combined_tags = {x: y for d in all_tags for x, y in d.items()}
+        if args.format == "json":
+            rich.print(sorted(combined_tags.keys()))
+        elif args.format == "json-details":
+            rich.print(combined_tags)
+        elif args.format == "text":
+            rich.print(", ".join(sorted(combined_tags.keys())))
+        elif args.format == "text-details":
+            for key, value in combined_tags.items():
+                rich.print(f"[bold blue]{key}[/bold blue])=[green]{value}[/green]")
+            rich.print()
+        else:
+            rich.print(f"[red]Unknown format: {args.format}[/red]")
+        return
     if args.with_tags is None:
         args.with_tags = []
     for item in iter_files(args, manifest=manifest):
@@ -544,12 +560,14 @@ def get_common_args_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--with-tags",
         nargs="*",
-        help="Files that match one of the specified tags, or any tag if no value is spacified.",
+        help="""Files that match one of the specified tags, or any tag if no value is specified.
+             Logical expressions such as 'baby AND happy' is allowed.""",
     )
     parser.add_argument(
         "--without-tags",
         nargs="*",
-        help="Files that does not match any of the specified tags, or without any tag if no value is specified..",
+        help="""Files that does not match any of the specified tags, or without any tag if no value
+            is specified. Logical expressions such as 'baby AND happy' is allowed.""",
     )
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
@@ -619,6 +637,9 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[parent_parser],
         help="Show all or selected tags",
+    )
+    parser_show_tags.add_argument(
+        "--all", action="store_true", help="Show all tags in the library."
     )
     parser_show_tags.add_argument("--tags", nargs="*", help="Show all or selected tags")
     parser_show_tags.add_argument(

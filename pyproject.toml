@@ -39,6 +39,8 @@ ml-dtypes = "^0.4.1"
 numpy = "^2.0.2"
 deepface = "^0.0.93"
 tf-keras = "^2.18.0"
+pyparsing = "^3.2.1"
+
 tomli = { version = "2.2.1", markers = "python_version < '3.11'" }
 
 [tool.poetry.group.dev.dependencies]
