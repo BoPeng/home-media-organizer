@@ -89,7 +89,7 @@ def image_file(tmp_path_factory: TempPathFactory) -> Callable:
 def test_config(config_file: Callable) -> None:
     """Test using --config to assign command line arguments."""
     cfg = config_file()
-    args = cli.parse_args(["--config", cfg, "rename", "file1", "file2"])
+    args = cli.parse_args(["rename", "--config", cfg, "file1", "file2"])
     assert args.config == cfg
     assert args.command == "rename"
     assert args.items == ["file1", "file2"]
