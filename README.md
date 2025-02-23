@@ -251,7 +251,48 @@ You can also limit the tags that you would like to assign with option
 hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED BELLY_EXPOSED
 ```
 
-`home-media-organizer` is bundled with [pytorchcv](https://github.com/osmr/pytorchcv), which comes with a large number of pre-trained models. You can use any of the models to classify your libraries although the tags assigned by these models will vary.
+_home-media-organizer_ currently supports the following models and tags
+
+| model   | tag                        | comment        |
+| ------- | -------------------------- | -------------- |
+| nudenet | `FEMALE_GENITALIA_COVERED` |                |
+|         | `FACE_FEMALE`              |                |
+|         | `BUTTOCKS_EXPOSED`         |                |
+|         | `FEMALE_BREAST_EXPOSED`    |                |
+|         | `FEMALE_GENITALIA_EXPOSED` |                |
+|         | `MALE_BREAST_EXPOSED`      |                |
+|         | `ANUS_EXPOSED`             |                |
+|         | `FEET_EXPOSED`             |                |
+|         | `BELLY_COVERED`            |                |
+|         | `FEET_COVERED`             |                |
+|         | `ARMPITS_COVERED`          |                |
+|         | `ARMPITS_EXPOSED`          |                |
+|         | `FACE_MALE`                |                |
+|         | `BELLY_EXPOSED`            |                |
+|         | `MALE_GENITALIA_EXPOSED`   |                |
+|         | `ANUS_COVERED`             |                |
+|         | `FEMALE_BREAST_COVERED`    |                |
+|         | `BUTTOCKS_COVERED`         |                |
+| age     | `baby`                     | age < 3        |
+|         | `toddler`                  | 3 <= age < 12  |
+|         | `teenager`                 | 12 <= age < 20 |
+|         | `adult`                    | 20 <= age < 60 |
+|         | `elderly`                  | age >= 60      |
+| gender  | `Male`                     |                |
+|         | `Female`                   |                |
+| race    | `asian`                    |                |
+|         | `white`                    |                |
+|         | `middle eastern`           |                |
+|         | `indian`                   |                |
+|         | `latino`                   |                |
+|         | `black`                    |                |
+| emotion | `angry`                    |                |
+|         | `fear`                     |                |
+|         | `neutral`                  |                |
+|         | `sad`                      |                |
+|         | `disgust`                  |                |
+|         | `happy`                    |                |
+|         | `surprise`                 |                |
 
 ### `hmo show-exif`: Show EXIF information of one of more files
 
