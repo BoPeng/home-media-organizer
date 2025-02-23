@@ -1,7 +1,6 @@
 """Main module."""
 
 import filecmp
-import fnmatch
 import os
 import re
 import shutil
@@ -10,7 +9,6 @@ from logging import Logger
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import rich
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
@@ -186,28 +184,6 @@ class MediaFile:
                 return "19000101_000000"
             self.date = self.date.replace(":", "").replace(" ", "_")
         return self.date
-
-    def show_exif(
-        self: "MediaFile", keys: List[str] | None = None, output_format: str | None = None
-    ) -> None:
-        with ExifToolHelper() as e:
-            metadata = e.get_metadata(self.fullname)[0]
-            if keys is not None:
-                if all("*" not in key for key in keys):
-                    metadata = {k: metadata.get(k, "NA") for k in keys}
-                else:
-                    metadata = {
-                        k: v
-                        for k, v in metadata.items()
-                        if any(fnmatch.fnmatch(k, key) for key in keys)
-                    }
-
-        if not output_format or output_format == "json":
-            rich.print_json(data=metadata)
-        else:
-            for key, value in metadata.items():
-                rich.print(f"[bold blue]{key}[/bold blue]=[green]{value}[/green]")
-            rich.print()
 
     def intended_prefix(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
         date = self.get_date()

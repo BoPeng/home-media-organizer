@@ -119,6 +119,8 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         get_show_tags_parser(subparsers),
         get_validate_parser(subparsers),
     ]:
+        # we do not use parent parser mechanism because we would like to
+        # create a separate argument group for each subcommand
         add_common_arguments(subparser)
 
     # load configuration
@@ -162,7 +164,7 @@ def app(arg_list: Optional[List[str]] = None) -> int:
         args.func(args, logger)
     except KeyboardInterrupt:
         logger.info("Exiting...")
-        return 130
+        return 1
     return 0
 
 
