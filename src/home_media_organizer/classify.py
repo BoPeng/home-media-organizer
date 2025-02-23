@@ -8,7 +8,8 @@ import numpy as np
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import cache, manifest
+from .media_file import MediaFile
+from .utils import cache
 
 
 #
@@ -61,10 +62,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                 continue
             if logger:
                 logger.debug(f"Tagging {item} with {tags}")
-            if args.overwrite:
-                manifest.set_tags(item, tags)
-            else:
-                manifest.add_tags(item, tags)
+            MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
 
             processed_cnt += 1
             if tags:
