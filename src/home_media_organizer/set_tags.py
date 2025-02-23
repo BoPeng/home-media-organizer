@@ -9,7 +9,7 @@ import rich
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import manifest
+from .media_file import MediaFile
 
 #
 # set tags to media files
@@ -66,10 +66,7 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         ):
             if not match:
                 continue
-            if args.overwrite:
-                manifest.set_tags(item, tags)
-            else:
-                manifest.add_tags(item, tags)
+            MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
             cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files tagged.")

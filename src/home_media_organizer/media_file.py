@@ -7,12 +7,12 @@ import shutil
 from datetime import datetime, timedelta
 from logging import Logger
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
-from .utils import OrganizeOperation, get_response
+from .utils import OrganizeOperation, get_response, manifest
 
 
 def image_date(filename: Path) -> str | None:
@@ -498,3 +498,21 @@ class MediaFile:
                     logger,
                     attempt + 1,
                 )
+
+    def set_tags(
+        self: "MediaFile",
+        tags: Dict[str, Any],
+        overwrite: bool = False,
+        confirmed: bool = False,
+        logger: Logger | None = None,
+    ) -> None:
+        if not confirmed and not get_response(
+            f"Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"
+        ):
+            return
+        if overwrite:
+            manifest.set_tags(self.fullname, tags)
+        else:
+            manifest.add_tags(self.fullname, tags)
+        if logger is not None:
+            logger.info(f"Added tags {tags} to [blue]{self.filename}[/blue]")
