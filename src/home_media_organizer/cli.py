@@ -92,7 +92,7 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
 
 def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="""An Swiss Army Knife kind of tool to help fix, organize, and maitain your home media library""",
+        description="""An versatile tool to maintain your home media library""",
         epilog="""See documentation at https://github.com/BoPeng/home-media-organizer/""",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

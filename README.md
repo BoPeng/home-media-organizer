@@ -24,26 +24,11 @@ A versatile tool to fix, organize, and maintain your home media library.
 Table of Contents:
 
 - [Features](#features)
-- [Installation](#installation)
-- [How to use this tool](#how-to-use-this-tool)
-  - [Assumptions](#assumptions)
-  - [Configuration file](#configuration-file)
-- [Detailed Usages](#detailed-usages)
-  - [`hmo-list`: List all or selected media files](#hmo-list-list-all-or-selected-media-files)
-  - [`hmo show-tags`: Show tags assciated with media files](#hmo-show-tags-show-tags-assciated-with-media-files)
-  - [`hmo set-tags`: Set tags to media files](#hmo-set-tags-set-tags-to-media-files)
-  - [`hmo unset-tags`: Remove specified tags from media files](#hmo-unset-tags-remove-specified-tags-from-media-files)
-  - [`hmo classify`: Classify media files with a machine learning model](#hmo-classify-classify-media-files-with-a-machine-learning-model)
-  - [`hmo show-exif`: Show EXIF information of one of more files](#hmo-show-exif-show-exif-information-of-one-of-more-files)
-  - [`hmo set-exif`: Set exif metadata to media files](#hmo-set-exif-set-exif-metadata-to-media-files)
-  - [`hmo shift-exif`: Shift all dates by certain dates](#hmo-shift-exif-shift-all-dates-by-certain-dates)
-  - [`hmo validate`: Identify corrupted JPEG files](#hmo-validate-identify-corrupted-jpeg-files)
-  - [`hmo dedup` Remove duplicated files](#hmo-dedup-remove-duplicated-files)
-  - [`hmo compare` Compare two sets of files](#hmo-compare-compare-two-sets-of-files)
-  - [`hmo rename`: Standardize filenames](#hmo-rename-standardize-filenames)
-  - [`hmo organize`: Organize media files](#hmo-organize-organize-media-files)
-  - [`hmo cleanup`: Clean up library](#hmo-cleanup-clean-up-library)
-- [How to get help](#how-to-get-help)
+- [Quick Start](#quick-start)
+- [Basic Usages](#basic-usages)
+  - [List and count all photos](#list-and-count-all-photos)
+  - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
+  - [Organize files](#organize-files)
 - [Advanced Topics](#advanced-topics)
   - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
   - [Filtering by tags](#filtering-by-tags)
@@ -56,22 +41,22 @@ Table of Contents:
 - **Duplicate Detection**: Find and remove duplicate media files
 - **Tag Management**: Add, remove, and search media files by custom tags
 - **AI-Powered Classification**:
-  - Face detection and recognition, tag photos with names
-  - Age and gender detection
+  - Face detection and recognition, tagging photos with names
+  - Age, gender, emotion detection
   - Content classification (NSFW detection)
 - **EXIF Management**: View, set, and modify EXIF metadata
 - **File Validation**: Detect corrupted media files
 - **Flexible Configuration**: Customizable organization patterns and rules
 
-## Installation
+## Quick Start
 
-1. Install [exiftool](https://exiftool.org/install.html). This is the essential tool to read and write EXIF information.
-
-2. Install **Home Media Organizer** with
+1. Install **Home Media Organizer** with
 
    ```sh
    pip install home-media-organizer
    ```
+
+2. (Optional) Install [exiftool](https://exiftool.org/install.html) for EXIF related operations.
 
 3. (Optional) Install **ffmpeg** with
 
@@ -81,37 +66,11 @@ Table of Contents:
 
    or some other methods suitable for your environment. This tool is only used to validate if your mp4/mpg files are playable using command `hmo validate`.
 
-## How to use this tool
-
-### Assumptions
-
-HMO dose not assume any particular way for you to organize your media files. Its operation is however largely based on date and time of the photos and videos. It goes great a long way to determine datetime information from EXIF information, and from filenames if no EXIF is unavailable. It then provides rules for you to rename and organize the file, according to patterns based on datetime.
-
-The pattern for file and directory names are based on [Python datetime module](https://docs.python.org/3/library/datetime.html). For example,
-
-- A directory structure specified by `hmo organize --dir-pattern=%Y/%b` tries to organize albums by `YEAR/MONTH-ALBUM/` like `2020/Jan`, `2020/Feb`, `2020/Feb-vacation` etc.
-
-- A directory structure specified by `hmo organize --dir-pattern=%Y/%Y-%m` tries to organize albums by `YEAR/YEAR-MONTH-ALBUM/` such as `2020/2020-01`, `2020/2020-02` etc. This structure has the advantage that all "albums" have unique names.
-
-- With option `--album-sep=/` the albums can be put under the `dir-pattern` to create directory structure such as `2020/2020-02/Vacation`.
-
-- With option `hmo rename --format %Y%m%d_%H%M%S` will rename files to format such as `20200312_100203.jpg`. This is the format for many phones and cameras.
-
-### Configuration file
-
-Although all parameters can be specified via command line, it is a good practice to list values of some parameters in configuration files so that you do not have to specify them each time.
-
-HMO recognizes
-
-- `~/.home-media-organizer/config.toml`
-- `./.home-media-organizer.toml`
-- And any configuration file specified with option `--config`
-
-The format of the configuration is [TOML](https://toml.io/en/), and a typical configuration file looks like:
+4. (Optional) Create a configuration file `~/.home-media-organizer/config.toml` that reflect the configuration of your home media library. These options define default parameters for the `hmo` commands. Adding them to a configuration file greatly simplifies the use of `hmo`.
 
 ```toml
 [default]
-search-paths = ['/Volumes/NAS/incoming']
+search-paths = ['/Volumes/NAS/incoming', '/Volumes/NAS/MyPictures']
 media-root = '/Volumes/NAS/MyPictures'
 manifest = '/Volumes/NAS/MyPictures/manifest.db'
 
@@ -137,26 +96,72 @@ file_types = [
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands. You can learn more about these parameters with command like
+See [Configuration file](docs/README.md#configuration-file) for details.
 
-```
-hmo -h
-hmo rename -h
-```
-
-**NOTE**: If you have multiple configuration files, their values will be merged.
-
-
-## How to get help
-
-The help message is the authoritative source of information regarding Home Media Organizer
+5. Start using **Home Media Organizer**
 
 ```sh
-hmo --help
-hmo rename -h
+hmo -h
 ```
 
-If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
+For details usages of each command, please visit [Home Media Organizer Documentation](docs/README.md).
+
+## Basic Usages
+
+### List and count all photos
+
+```sh
+hmo list 2020 --file-types '*.jpg'
+```
+
+will print the name of all files under directory `2020`, with a message showing the number of files at the end. Note that
+
+1. If `2020` is not under the current directory, it will be searched from `--search-paths`.
+2. `--file-types` is a file pattern, so you can use options such as `--file-types '202012*.jpg'` to list all files starting with `202012`.
+
+### Rename files according to their date and time
+
+```sh
+hmo rename incoming_folder
+```
+
+will
+
+1. Retrieve the datatime information of all media files under `incoming_folder`
+2. Calculate canonical names for each file according to a `--format` specification, which is usually specified in the configuration files.
+3. Rename files interactively or in batch mode if `--yes` is specified.
+
+Note that
+
+1. `--format` uses patterns defined by [Python datetime module](https://docs.python.org/3/library/datetime.html). For example, `%Y%m%d_%H%M%S` rename files to names such as `20201225_212917.jpg`.
+
+It is sometimes desired to add some suffix to filenames, for example to show who took the pictures, which camera was used, where the picture was taken. This can be achieved by
+
+```sh
+hmo rename incoming_folder --suffix=-kat
+```
+
+which renames files to `20201225_212917-kat.jpg`.
+
+### Organize files
+
+`hmo` organize files according to `media_root` and `dir-pattern`. If you have `dir-pattern` defined as `%Y/%Y-%m`,
+
+```sh
+hmo organize incoming_folder
+```
+
+will move files under `incoming_folder` to `/path/to/library/2020/2020-12/`.
+
+If you would like to put the files into an album-specific folder, you can use
+
+```sh
+hmo organize incoming_folder --album hawaii
+```
+
+to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
+
+The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
 ## Advanced Topics
 
