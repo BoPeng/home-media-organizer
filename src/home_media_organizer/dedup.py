@@ -53,7 +53,7 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
             continue
         # keep the one with the deepest path name
         duplicated_cnt += len(files) - 1
-        sorted_files = sorted(files, key=len)
+        sorted_files = sorted(files, key=lambda x: len(str(x)))
         for filename in sorted_files[:-1]:
             if logger is not None:
                 logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
