@@ -71,7 +71,7 @@ def get_dedup_parser(subparsers: argparse._SubParsersAction) -> argparse.Argumen
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "dedup",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Remove duplicated files.",
+        help="Remove duplicated files",
     )
     parser.add_argument(
         "--no-cache",
