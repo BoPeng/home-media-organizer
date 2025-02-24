@@ -26,7 +26,7 @@ def show_exif(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                     if any(fnmatch.fnmatch(k, key) for key in args.keys)
                 }
 
-        if not args.output_format or args.output_format == "json":
+        if not args.format or args.format == "json":
             rich.print_json(data=metadata)
         else:
             for key, value in metadata.items():

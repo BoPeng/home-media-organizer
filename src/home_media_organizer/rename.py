@@ -10,7 +10,11 @@ from .media_file import MediaFile
 # rename file to its canonical name
 #
 def rename_file(
-    item: Path, filename_format: str, suffix: str, confirmed: bool, logger: logging.Logger | None
+    item: Path,
+    filename_format: str,
+    suffix: str,
+    confirmed: bool | None,
+    logger: logging.Logger | None,
 ) -> None:
     m = MediaFile(item)
     # logger.info(f"Processing [blue]{item}[/blue]")
@@ -20,7 +24,7 @@ def rename_file(
 def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if not args.format:
         raise ValueError("Option --format is required.")
-    if args.confirmed:
+    if args.confirmed is not None:
         process_with_queue(
             args,
             lambda x, filename_format=args.format, suffix=args.suffix or "", logger=logger: rename_file(

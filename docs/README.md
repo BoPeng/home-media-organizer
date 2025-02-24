@@ -3,6 +3,7 @@ Table of Contents:
 - [General Usage](#general-usage)
   - [Getting Help](#getting-help)
   - [Configuration file](#configuration-file)
+  - [Batch, Dryrun, and Interactive Mode](#batch-dryrun-and-interactive-mode)
 - [Explore Your Home Media Library](#explore-your-home-media-library)
   - [`hmo-list`: List media files](#hmo-list-list-media-files)
   - [`hmo show-tags`: Show tags associated with media files](#hmo-show-tags-show-tags-associated-with-media-files)
@@ -26,12 +27,91 @@ Table of Contents:
 
 ### Getting Help
 
-The help message is the authoritative source of information regarding Home Media Organizer
+The help message is the authoritative source of information regarding _Home Media Organizer_. For example, `hmo -h` list all subcommands,
 
 ```sh
-hmo --help
-hmo rename -h
+$ hmo -h
+
+usage: hmo [-h] [--version]
+           {classify,cleanup,compare,dedup,list,organize,remove-tags,rename,set-exif,set-tags,shift-exif,show-exif,show-tags,validate}
+           ...
+
+An versatile tool to maintain your home media library
+
+positional arguments:
+  {classify,cleanup,compare,dedup,list,organize,remove-tags,rename,set-exif,set-tags,shift-exif,show-exif,show-tags,validate}
+                        sub-command help
+    classify            Classify and assign results as tags to media files
+    cleanup             Remove unwanted files and empty directories
+    compare             Compare two sets of files
+    dedup               Remove duplicated files
+    list                List media files
+    organize            Organize files into appropriate folder
+    remove-tags         Remove tags associated with media files
+    rename              Rename files to their canonical names
+    set-exif            Set EXIF of media files
+    set-tags            Tag all or similar media files
+    shift-exif          Shift the date EXIF of media files
+    show-exif           Show EXIF metadata of media files
+    show-tags           Show tags associated with media files
+    validate            Identify corrupted media files
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+
+See documentation at https://github.com/BoPeng/home-media-organizer/
 ```
+
+and `hmo rename -h` lists all options for subcommand `rename`.
+
+```sh
+$ hmo rename -h
+
+usage: hmo rename [-h] [--format FORMAT] [--suffix SUFFIX] [--file-types [FILE_TYPES ...]]
+                  [--with-tags [WITH_TAGS ...]] [--without-tags [WITHOUT_TAGS ...]]
+                  [--with-exif [WITH_EXIF ...]] [--without-exif [WITHOUT_EXIF ...]] [-c CONFIG]
+                  [--search-paths SEARCH_PATHS [SEARCH_PATHS ...]] [--manifest MANIFEST] [-j JOBS] [-v] [-y]
+                  items [items ...]
+
+options:
+  -h, --help            show this help message and exit
+  --format FORMAT       Format of the filename. This option is usually set through configuration file. (default:
+                        None)
+  --suffix SUFFIX       A string that will be appended to filename (before file extension). (default: None)
+
+common options:
+  items                 Directories or files to be processed
+  --file-types [FILE_TYPES ...]
+                        File types to process, such as *.jpg, *.mp4, or 'video*'. (default: None)
+  --with-tags [WITH_TAGS ...]
+                        Process only media files with specified tag, one of the tags if multiple value are
+                        provided, or any tag if no value is specified. Logical expressions such as 'baby AND
+                        happy' are supported. (default: None)
+  --without-tags [WITHOUT_TAGS ...]
+                        Process only media files that do not contain specified tag, or any of the tags if
+                        multiple values are provided, or without any tag if no value is specified. Logical
+                        expressions such as 'baby AND happy' is allowed. (default: None)
+  --with-exif [WITH_EXIF ...]
+                        Process only media files with specified exif data, which can be "key=value", or "key"
+                        while key in the second case can contain "*" for wildcard matching. (default: None)
+  --without-exif [WITHOUT_EXIF ...]
+                        Process only media files without specified exif data. Both "key=value" and "key" and
+                        wildcard character "*" in key are supported. (default: None)
+  -c CONFIG, --config CONFIG
+                        A configuration file in toml format. The configuration will be merged with configuration
+                        from ~/.home-media-organizer/config.toml (default: None)
+  --search-paths SEARCH_PATHS [SEARCH_PATHS ...]
+                        Search paths for items to be processed if relative file or directory names are
+                        specified. The current directory will always be searched first. (default: None)
+  --manifest MANIFEST   Path to a manifest file that stores metadata such as file signature and tags. Default to
+                        ~/.home-media-organizer/manifest.db. (default: None)
+  -j JOBS, --jobs JOBS  Number of jobs for multiprocessing. (default: None)
+  -v, --verbose         Enable verbose output (default: False)
+  -y, --yes             Proceed with all actions without prompt. (default: False)
+```
+
+The help messages of all subcommands have a section **common options:**. These options are available for all subcommands so you generally need to look into the **options** section for subcommand-specific options.
 
 ### Configuration file
 
@@ -49,7 +129,6 @@ The format of the configuration is [TOML](https://toml.io/en/), and a typical co
 [default]
 search-paths = ['/Volumes/NAS/incoming']
 media-root = '/Volumes/NAS/MyPictures'
-manifest = '/Volumes/NAS/MyPictures/manifest.db'
 
 [rename]
 format = '%Y%m%d_%H%M%S'
@@ -64,23 +143,24 @@ file_types = [
     "*.PGI",
     ".LRC",
     "*.THM",
-    "Default.PLS",
-    ".picasa*.ini",
-    "Thumbs.db",
-    "*.ini",
-    "*.bat",
-    "autprint*"
+    "Default.PLS"
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands. You can learn more about these parameters with command like
-
-```
-hmo -h
-hmo rename -h
-```
+The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands.
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
+
+### Batch, Dryrun, and Interactive Mode
+
+`hmo` demands user-confirmation for any operation it performs on media files. By default, a prompt will be displayed for you to select `Yes/No`, although entering `ENTER` will assume `Yes`.
+
+Two options `--yes/-y` and `--no/-n` are provided to override this behavior.
+
+- `--yes/-y` runs the script in batch mode. If assumes `--yes` for all prompts and performs the operations without extra confirmation.
+- `--no/-n` runs the script in dryrun mode. If assumes `--no` for all prompts and print out a message indicating what would have been done.
+
+By default, all operations that require interactive user confirmations will be run in a single process and process sequentially. However, the command will be run in **multiprocessing mode** (with number of jobs controllable by option `--jobs`) when `--yes` or `--no` is specified.
 
 ## Explore Your Home Media Library
 
@@ -359,7 +439,7 @@ Command `hmo classify` applies a machine learning model on the media files and s
 For example, to identify pictures that are not suitable to viewed by public, even family members, you can use a [nudenet](https://github.com/notAI-tech/nudenet) model as follows
 
 ```sh
-hmo classify 2009 --model nudenet
+hmo classify 2009 --model nsfw
 ```
 
 to assign tags such as `FACE_FEMALE`, `BELLY_EXPOSED`, and `FEMALE_BREAST_COVERED` to medias. You can then use commands such as
@@ -373,7 +453,7 @@ to identify inappropriate photos and act accordingly.
 The `nudenet` model assigns metadata such as `score` to each prediction. You can use command
 
 ```sh
-hmo classify 2009 --model nudenet --threshold 0.9
+hmo classify 2009 --model nsfw --threshold 0.9
 ```
 
 to only assign tags if the model is confident enough.
@@ -381,52 +461,31 @@ to only assign tags if the model is confident enough.
 You can also limit the tags that you would like to assign with option
 
 ```sh
-hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED BELLY_EXPOSED
+hmo classify 2009 --model nsfw --threshold 0.9 --tags FEMALE_BREAST_COVERED BELLY_EXPOSED
 ```
 
-_home-media-organizer_ currently supports the following models and tags
+_home-media-organizer_ currently supports the following models, options, and tags
 
-| model   | tags                       | comment        |
-| ------- | -------------------------- | -------------- |
-| nudenet | `FEMALE_GENITALIA_COVERED` |                |
-|         | `FACE_FEMALE`              |                |
-|         | `BUTTOCKS_EXPOSED`         |                |
-|         | `FEMALE_BREAST_EXPOSED`    |                |
-|         | `FEMALE_GENITALIA_EXPOSED` |                |
-|         | `MALE_BREAST_EXPOSED`      |                |
-|         | `ANUS_EXPOSED`             |                |
-|         | `FEET_EXPOSED`             |                |
-|         | `BELLY_COVERED`            |                |
-|         | `FEET_COVERED`             |                |
-|         | `ARMPITS_COVERED`          |                |
-|         | `ARMPITS_EXPOSED`          |                |
-|         | `FACE_MALE`                |                |
-|         | `BELLY_EXPOSED`            |                |
-|         | `MALE_GENITALIA_EXPOSED`   |                |
-|         | `ANUS_COVERED`             |                |
-|         | `FEMALE_BREAST_COVERED`    |                |
-|         | `BUTTOCKS_COVERED`         |                |
-| face    | `face`                     |                |
-| age     | `baby`                     | age < 3        |
-|         | `toddler`                  | 3 <= age < 12  |
-|         | `teenager`                 | 12 <= age < 20 |
-|         | `adult`                    | 20 <= age < 60 |
-|         | `elderly`                  | age >= 60      |
-| gender  | `Male`                     |                |
-|         | `Female`                   |                |
-| race    | `asian`                    |                |
-|         | `white`                    |                |
-|         | `middle eastern`           |                |
-|         | `indian`                   |                |
-|         | `latino`                   |                |
-|         | `black`                    |                |
-| emotion | `angry`                    |                |
-|         | `fear`                     |                |
-|         | `neutral`                  |                |
-|         | `sad`                      |                |
-|         | `disgust`                  |                |
-|         | `happy`                    |                |
-|         | `surprise`                 |                |
+| feature | model:option                    | tags                                                                                                                                                                                                                                                                                                                                                                 | comment                           |
+| ------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| nsfw    | `nudenet`                       | `FEMALE_GENITALIA_COVERED`, `FACE_FEMALE`, `BUTTOCKS_EXPOSED`, `FEMALE_BREAST_EXPOSED`, `FEMALE_GENITALIA_EXPOSED`, `MALE_BREAST_EXPOSED` , `ANUS_EXPOSED`, `FEET_EXPOSED`,`BELLY_COVERED`, `FEET_COVERED`,`ARMPITS_COVERED`, `ARMPITS_EXPOSED`, `FACE_MALE`, `BELLY_EXPOSED`, `MALE_GENITALIA_EXPOSED`, `ANUS_COVERED`, `FEMALE_BREAST_COVERED`, `BUTTOCKS_COVERED` |                                   |
+| face    | `deepface`, `deepface:BACKEND`, | `face`                                                                                                                                                                                                                                                                                                                                                               | Set `face` if a face is detected. |
+| age     | `deepface`, `deepface:BACKEND`  | `baby` (age < 3), `toddler` (3 <= age < 12), `teenager` (12 <= age < 20), `adult` (20 <= age < 60 ), `elderly` ( age >= 60 )                                                                                                                                                                                                                                         |                                   |
+| gender  | `deepface`, `deepface:BACKEND`  | `Male` , `Female`                                                                                                                                                                                                                                                                                                                                                    |                                   |
+| race    | `deepface`, `deepface:BACKEND`  | `asian` , `white` , `middle eastern` , `indian`, `latino`, `black`                                                                                                                                                                                                                                                                                                   |                                   |
+| emotion | `deepface`, `deepface:BACKEND`  | `angry` , `fear` , `neutral` , `sad`,`disgust`, `happy` `surprise`                                                                                                                                                                                                                                                                                                   |                                   |
+
+Note that
+
+1. For the `deepface` model, it is possible to specify a backend, which can be one of `opencv`, `retinaface`, `mtcnn`, `ssd`, `dlib`, `mediapipe`, `yolov8`, `yolov11n`, `yolov11s`, `yolov11m`, `centerface`,`skip` (assume face is extracted). For example, for `gender` detection, the `--model` can be `gender`, `gender:deepface`, or `gender:deepface:dlib`.
+2. If you would like to use multiple models for the same features, you can use option `--suffix` to add a suffix to labels. For example, commands
+
+```sh
+hmo classify /path/to/photo.jpg --model emotion:deepface
+hmo classify /path/to/photo.jpg --model emotion:deepface:dlib --suffix=-dlib
+```
+
+could yield tags `sad` and `sad-dlib` for the same photo.
 
 ## Working with EXIF
 

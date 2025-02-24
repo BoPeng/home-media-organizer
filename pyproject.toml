@@ -40,7 +40,7 @@ numpy = "^2.0.2"
 deepface = "^0.0.93"
 tf-keras = "^2.18.0"
 pyparsing = "^3.2.1"
-
+inflect = "^7.5.0"
 tomli = { version = "2.2.1", markers = "python_version < '3.11'" }
 
 [tool.poetry.group.dev.dependencies]
@@ -114,6 +114,8 @@ ignore = [
   "B007",
   "D415",
   "ANN401",
+  "D105",
+  "B035",
   "ERA001", # commented code
   "G004",
   "S101",   # use of assert

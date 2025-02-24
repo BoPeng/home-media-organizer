@@ -16,13 +16,19 @@ def cleanup(args: argparse.Namespace, logger: logging.Logger | None) -> None:
             if args.file_types:
                 for f in files:
                     if any(fnmatch.fnmatch(f, x) for x in args.file_types):
-                        if args.confirmed or get_response(f"Remove {rootpath / f}?"):
+                        if args.confirmed is False:
+                            if logger is not None:
+                                logger.info(f"[green]DRYRUN[/green] Would remove {rootpath / f}")
+                        elif args.confirmed or get_response(f"Remove {rootpath / f}?"):
                             if logger is not None:
                                 logger.info(f"Remove {rootpath / f}")
                             (rootpath / f).unlink()
             # empty directories are always removed when traverse the directory
             if not os.listdir(root):
-                if args.confirmed or get_response(f"Remove empty directory {root}?"):
+                if args.confirmed is False:
+                    if logger is not None:
+                        logger.info(f"[green]DRYRUN[/green] Would remove empty directory {root}")
+                elif args.confirmed or get_response(f"Remove empty directory {root}?"):
                     if logger is not None:
                         logger.info(f"Remove empty directory [blue]{root}[/blue]")
                     rootpath.rmdir()
