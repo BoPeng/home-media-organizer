@@ -10,7 +10,11 @@ from .media_file import MediaFile
 # rename file to its canonical name
 #
 def rename_file(
-    item: Path, filename_format: str, suffix: str, confirmed: bool, logger: logging.Logger | None
+    item: Path,
+    filename_format: str,
+    suffix: str,
+    confirmed: bool | None,
+    logger: logging.Logger | None,
 ) -> None:
     m = MediaFile(item)
     # logger.info(f"Processing [blue]{item}[/blue]")

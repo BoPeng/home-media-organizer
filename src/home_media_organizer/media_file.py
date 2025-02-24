@@ -231,7 +231,7 @@ class MediaFile:
         minutes: int = 0,
         seconds: int = 0,
         keys: Optional[List[str]] = None,
-        confirmed: bool = False,
+        confirmed: bool | None | None = False,
         logger: Optional[Logger] = None,
     ) -> None:  # pylint: disable=too-many-positional-arguments
         # add one or more 0: if the format is not YY:DD:HH:MM
@@ -324,7 +324,7 @@ class MediaFile:
         self: "MediaFile",
         values: Dict[str, str],
         override: bool = False,
-        confirmed: bool = False,
+        confirmed: bool | None = None,
         logger: Logger | None = None,
     ) -> None:
         # add one or more 0: if the format is not YY:DD:HH:MM
@@ -396,7 +396,7 @@ class MediaFile:
         self: "MediaFile",
         filename_format: str = "%Y%m%d_%H%M%S",
         suffix: str = "",
-        confirmed: bool = False,
+        confirmed: bool | None = None,
         logger: Logger | None = None,
         attempt: int = 0,
     ) -> None:
@@ -468,7 +468,7 @@ class MediaFile:
         album: str = "",
         album_sep: str = "-",
         operation: OrganizeOperation = OrganizeOperation.MOVE,
-        confirmed: bool = False,
+        confirmed: bool | None = None,
         logger: Logger | None = None,
         attempt: int = 0,
     ) -> None:
@@ -550,7 +550,7 @@ class MediaFile:
         self: "MediaFile",
         tags: Dict[str, Any],
         overwrite: bool = False,
-        confirmed: bool = False,
+        confirmed: bool | None = None,
         logger: Logger | None = None,
     ) -> None:
         if confirmed is False:
@@ -573,7 +573,7 @@ class MediaFile:
     def remove_tags(
         self: "MediaFile",
         tags: List[str],
-        confirmed: bool = False,
+        confirmed: bool | None = None,
         logger: Logger | None = None,
     ) -> None:
         if confirmed is False:
