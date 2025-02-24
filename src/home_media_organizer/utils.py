@@ -229,7 +229,7 @@ class Manifest:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT filename, hash_value, tags FROM manifest WHERE filename = ?",
-                (filename.resolve(),),
+                (str(filename.resolve()),),
             )
             row = cursor.fetchone()
             if row:
@@ -252,7 +252,7 @@ class Manifest:
                 VALUES (?, ?, ?)
                 ON CONFLICT(filename) DO UPDATE SET hash_value = ?
             """,
-                (abs_path, signature, {}, signature),
+                (str(abs_path), signature, {}, signature),
             )
             conn.commit()
 
@@ -284,7 +284,7 @@ class Manifest:
                     COALESCE(tags, ?), ?
                 )
             """,
-                (abs_path, tags, {}, tags),
+                (str(abs_path), tags, {}, tags),
             )
             self.cache.pop(filename, None)
             conn.commit()
@@ -302,7 +302,7 @@ class Manifest:
                     VALUES (?, '', NULL)
                     ON CONFLICT(filename) DO UPDATE SET tags = NULL
                     """,
-                    (abs_path,),
+                    (str(abs_path),),
                 )
             else:
                 cursor.execute(
@@ -311,7 +311,7 @@ class Manifest:
                     VALUES (?, '', ?)
                     ON CONFLICT(filename) DO UPDATE SET tags = ?
                     """,
-                    (abs_path, tags, tags),
+                    (str(abs_path), tags, tags),
                 )
             self.cache.pop(filename, None)
             conn.commit()
@@ -327,7 +327,7 @@ class Manifest:
                 SET filename = ?
                 WHERE filename = ?
                 """,
-                (abs_new_name, abs_old_name),
+                (str(abs_new_name), str(abs_old_name)),
             )
             conn.commit()
             self.cache.pop(old_name, None)
@@ -342,7 +342,7 @@ class Manifest:
                 DELETE FROM manifest
                 WHERE filename = ?
                 """,
-                (abs_path,),
+                (str(abs_path),),
             )
             conn.commit()
             self.cache.pop(filename, None)
@@ -359,7 +359,7 @@ class Manifest:
                 FROM manifest
                 WHERE filename = ?
                 """,
-                (abs_new_name, abs_old_name),
+                (str(abs_new_name), str(abs_old_name)),
             )
             conn.commit()
             self.cache.pop(new_name, None)
@@ -375,7 +375,7 @@ class Manifest:
                     SET tags = json_remove(tags, '$.' || ?)
                     WHERE filename = ?
                     """,
-                    (tag, abs_path),
+                    (tag, str(abs_path)),
                 )
             conn.commit()
             self.cache.pop(filename, None)

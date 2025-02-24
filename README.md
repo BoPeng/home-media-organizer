@@ -163,6 +163,20 @@ to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
 
 The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
+### Find all the baby pictures
+
+To find out all baby pictures, you first need to annotate all pictures with appropriate tags. You can
+
+```sh
+hmo classify 2025 --model age
+```
+
+and check if the classifier can correctly identify ages of individuals. This classifier sets tags `baby`, `toddler`, `teenager` etc according to estimated age, but you can limit the tags to only `baby`
+
+```sh
+hmo classify 2025 --model age --tags baby
+```
+
 ## Advanced Topics
 
 ### Compare against a separate collection of files

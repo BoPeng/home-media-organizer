@@ -9,6 +9,7 @@ from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import inflect
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
@@ -157,6 +158,7 @@ class MediaFile:
         self.dirname = filename.parent
         self.filename = filename.name
         self.ext: str = filename.suffix
+        self.inflect = inflect.engine()
         self.date: str | None = None
 
     @property
@@ -520,7 +522,9 @@ class MediaFile:
         else:
             manifest.add_tags(self.fullname, tags)
         if logger is not None:
-            logger.info(f"Added tags {tags} to [blue]{self.filename}[/blue]")
+            logger.info(
+                f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.filename}[/blue]"""
+            )
 
     def remove_tags(
         self: "MediaFile",

@@ -25,7 +25,7 @@ def classify_image(
     fullname = filename.resolve()
     for model_name in models:
         model_class: Type[Classifier] = get_classifier_class(model_name)
-        model = model_class(threshold, top_k, tags, logger)
+        model = model_class(model_name, threshold, top_k, tags, logger)
         res |= model.classify(fullname)
 
     return fullname, res
@@ -36,38 +36,51 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     processed_cnt = 0
 
     # download the model if needed
-    with Pool(args.jobs or None) as pool:
-        for item, tags in tqdm(
-            pool.imap(
-                classify_image,
-                {
-                    (
-                        x,
-                        tuple(args.models),
-                        args.threshold,
-                        args.top_k,
-                        (tuple(args.tags) if args.tags is not None else args.tags),
-                        logger,
-                    )
-                    for x in iter_files(args)
-                },
-            ),
-            desc="Classifying media",
-        ):
-            if "error" in tags:
-                if logger is not None:
-                    logger.error(f"Error processing {item}: {tags['error']}")
-                continue
-            if not tags:
-                continue
-            if logger:
-                logger.debug(f"Tagging {item} with {tags}")
-            MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
+    if args.confirmed:
+        with Pool(args.jobs or None) as pool:
+            for item, tags in tqdm(
+                pool.imap(
+                    classify_image,
+                    {
+                        (
+                            x,
+                            tuple(args.models),
+                            args.threshold,
+                            args.top_k,
+                            (tuple(args.tags) if args.tags is not None else args.tags),
+                            logger,
+                        )
+                        for x in iter_files(args)
+                    },
+                ),
+                desc="Classifying media",
+            ):
+                if not tags:
+                    continue
+                if logger:
+                    logger.debug(f"Tagging {item} with {tags}")
+                MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
 
-            processed_cnt += 1
+                processed_cnt += 1
+                if tags:
+                    cnt += 1
+    else:
+        # interactive mode
+        for item in iter_files(args, logger=logger):
+            tags = classify_image(
+                (
+                    item,
+                    tuple(args.models),
+                    args.threshold,
+                    args.top_k,
+                    (tuple(args.tags) if args.tags is not None else args.tags),
+                    logger,
+                )
+            )[1]
             if tags:
+                MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
                 cnt += 1
-
+            processed_cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] of {processed_cnt} files are tagged.")
 
@@ -101,21 +114,36 @@ TClassifier = TypeVar("TClassifier", bound="Classifier")
 
 class Classifier(Generic[TClassifier]):
     name = "generic"
+    default_backend = None
+    allowed_backends = ()
+    labels = ()
 
     def __init__(
         self,
+        model_name: str,
         threshold: float | None,
         top_k: int | None,
         tags: Tuple[str] | None,
         logger: logging.Logger | None,
     ) -> None:
+        if ":" in model_name:
+            self.backend = model_name.split(":", 1)[1]
+            if self.backend not in self.allowed_backends:
+                raise ValueError(
+                    f"""{self.name} does not support backend model {self.backend}. Please choose from {", ".join(self.allowed_backends)}"""
+                )
+        else:
+            self.backend = self.default_backend
         self.threshold = threshold
         self.top_k = top_k
         self.tags = tags
         self.logger = logger
+        for tag in self.tags or []:
+            if tag not in self.labels:
+                raise ValueError(f"{self.name} does not support tag: {tag}")
 
     def _cache_key(self, filename: Path) -> Tuple[str, str]:
-        return (self.name, str(filename))
+        return (self.name, self.backend or "", str(filename))
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         raise NotImplementedError()
@@ -126,24 +154,51 @@ class Classifier(Generic[TClassifier]):
     def classify(self, filename: Path) -> Dict[str, Any]:
         key = self._cache_key(filename)
         res = cache.get(key, None)
-        if res is None:
+        if not res:
             res = self._classify(filename)
-            cache.set(key, res, tag="classify")
+            # if detection failed, the picture will be detected again and again
+            # which might not be a good idea
+            if res:
+                cache.set(key, res, tag="classify")
+        if self.logger is not None:
+            self.logger.debug(f"{filename=} model={self.name}:{self.backend or 'default'} {res=}")
         return self._filter_tags(res)
 
 
 class NudeNetClassifier(Classifier):
     name = "nudenet"
+    default_backend = None
+    allowed_backends = ("nudenet",)
+    labels = (
+        "FEMALE_GENITALIA_COVERED",
+        "FACE_FEMALE",
+        "BUTTOCKS_EXPOSED",
+        "FEMALE_BREAST_EXPOSED",
+        "FEMALE_GENITALIA_EXPOSED",
+        "MALE_BREAST_EXPOSED",
+        "ANUS_EXPOSED",
+        "FEET_EXPOSED",
+        "BELLY_COVERED",
+        "FEET_COVERED",
+        "ARMPITS_COVERED",
+        "ARMPITS_EXPOSED",
+        "FACE_MALE",
+        "BELLY_EXPOSED",
+        "MALE_GENITALIA_EXPOSED",
+        "ANUS_COVERED",
+        "FEMALE_BREAST_COVERED",
+        "BUTTOCKS_COVERED",
+    )
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from nudenet import NudeDetector  # type: ignore
 
         detector = NudeDetector()
         try:
-            return cast(List[Dict[str, Any]], detector.detect(filename))
+            return cast(List[Dict[str, Any]], detector.detect(str(filename)))
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error classifying {filename}: {e}")
+                self.logger.debug(f"Error classifying {filename}: {e}")
             return []
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -156,22 +211,61 @@ class NudeNetClassifier(Classifier):
         }
 
 
+deepface_models = [
+    "VGG-Face",
+    "Facenet",
+    "Facenet512",
+    "OpenFace",
+    "DeepFace",
+    "DeepID",
+    "ArcFace",
+    "Dlib",
+    "SFace",
+    "GhostFaceNet",
+]
+
+deepface_backends = [
+    "opencv",
+    "retinaface",
+    "mtcnn",
+    "ssd",
+    "dlib",
+    "mediapipe",
+    "yolov8",
+    "yolov11n",
+    "yolov11s",
+    "yolov11m",
+    "centerface",
+    "skip",
+]
+
+
 class AgeClassifier(Classifier):
     name = "age"
+    labels = ("baby", "toddler", "teenager", "adult", "elderly")
+    default_backend = "opencv"
+    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
-            return cast(List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["age"]))
+            return cast(
+                List[Dict[str, Any]],
+                DeepFace.analyze(
+                    img_path=str(filename),
+                    actions=["age"],
+                    detector_backend=self.backend,
+                ),
+            )
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error classifying {filename}: {e}")
+                self.logger.debug(f"Error classifying {filename}: {e}")
             return []
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            get_age_label(x["age"]): x | {"model": self.name}
+            get_age_label(x["age"]): np_to_scalar(x) | {"model": self.name}
             for x in res
             if "age" in x and (self.tags is None or get_age_label(x["age"]) in self.tags)
         }
@@ -179,17 +273,26 @@ class AgeClassifier(Classifier):
 
 class GenderClassifier(Classifier):
     name = "gender"
+    labels = ("Woman", "Man")
+    default_backend = "opencv"
+    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
             return cast(
-                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["gender"])
+                List[Dict[str, Any]],
+                DeepFace.analyze(
+                    img_path=str(filename),
+                    actions=["gender"],
+                    detector_backend=self.backend,
+                    force_detection=True,
+                ),
             )
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error classifying {filename}: {e}")
+                self.logger.debug(f"Error classifying {filename}: {e}")
             return []
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -207,17 +310,25 @@ class GenderClassifier(Classifier):
 
 class RaceClassifier(Classifier):
     name = "race"
+    labels = ("asian", "indian", "black", "white", "middle eastern", "latino hispanic")
+    default_backend = "opencv"
+    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
             return cast(
-                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["race"])
+                List[Dict[str, Any]],
+                DeepFace.analyze(
+                    img_path=str(filename),
+                    actions=["race"],
+                    detector_backend=self.backend,
+                ),
             )
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error classifying {filename}: {e}")
+                self.logger.debug(f"Error classifying {filename}: {e}")
             return []
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -235,17 +346,26 @@ class RaceClassifier(Classifier):
 
 class EmotionClassifier(Classifier):
     name = "emotion"
+    labels = ("angry", "disgust", "fear", "happy", "sad", "surprise", "neutral")
+    default_backend = "opencv"
+    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
 
         try:
             return cast(
-                List[Dict[str, Any]], DeepFace.analyze(img_path=filename, actions=["emotion"])
+                List[Dict[str, Any]],
+                DeepFace.analyze(
+                    img_path=str(filename),
+                    actions=["emotion"],
+                    detector_backend=self.backend,
+                    enforce_detection=True,
+                ),
             )
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error classifying {filename}: {e}")
+                self.logger.debug(f"Error classifying {filename}: {e}")
             return []
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -269,7 +389,7 @@ def get_classifier_class(model_name: str) -> Type[Classifier]:
         GenderClassifier.name: GenderClassifier,
         RaceClassifier.name: RaceClassifier,
         EmotionClassifier.name: EmotionClassifier,
-    }[model_name]
+    }[model_name.split(":")[0]]
 
 
 def get_classify_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
@@ -282,8 +402,9 @@ def get_classify_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
     parser.add_argument(
         "--models",
         nargs="+",
-        choices=["nudenet", "age", "gender", "race", "emotion"],
-        help="Machine learning models used to tag media.",
+        help="""Machine learning models used to tag media. The model names
+            can be age, emotion, with optional model names such as "age:VGG-Face"
+            """,
     )
     parser.add_argument(
         "--tags",
