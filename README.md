@@ -163,18 +163,30 @@ to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
 
 The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
-### Find all the baby pictures
+### Do you have a happy family?
 
-To find out all baby pictures, you first need to annotate all pictures with appropriate tags. You can
+To find out the emotions of people in the photos, you first need to annotate all pictures with appropriate tags, with command
 
 ```sh
-hmo classify 2025 --model age
+hmo classify 2025 --model emotion --yes
 ```
 
-and check if the classifier can correctly identify ages of individuals. This classifier sets tags `baby`, `toddler`, `teenager` etc according to estimated age, but you can limit the tags to only `baby`
+This command will tag all photos with faces with emotions such as `angry`, `fear`, `neutral`, `sad`, and `happy`. With tags assigned to these photos, you can count the number of `happy` photos with command
 
 ```sh
-hmo classify 2025 --model age --tags baby
+hmo list 2025 --with-tags happy | wc -l
+```
+
+and compare that to the results with
+
+```sh
+hmo list 2025 --with-tags sad | wc -l
+```
+
+If you want to see how this command works, find a picture and run the classifier with `-v` (verbose) option.
+
+```sh
+hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
 ```
 
 ## Advanced Topics

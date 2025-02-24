@@ -139,7 +139,6 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)
-    manifest.init_db(args.manifest)
     return args
 
 
@@ -159,6 +158,8 @@ def app(arg_list: Optional[List[str]] = None) -> int:
     )
 
     logger = logging.getLogger(args.command)
+    manifest.init_db(args.manifest, logger=logger)
+
     # calling the associated functions
     try:
         args.func(args, logger)

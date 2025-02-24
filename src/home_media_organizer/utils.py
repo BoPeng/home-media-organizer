@@ -186,8 +186,10 @@ class Manifest:
         self.cache: ProcessSafeCache = ProcessSafeCache()
         self.init_db(filename)
 
-    def init_db(self: "Manifest", filename: str | None) -> None:
+    def init_db(self: "Manifest", filename: str | None, logger: Logger | None = None) -> None:
         self.database_path = str(hmo_home / "manifest.db") if filename is None else filename
+        if logger:
+            self.logger = logger
         self._init_db()
 
     def get_all_tags(self: "Manifest") -> List[Dict[str, Any]]:
@@ -465,7 +467,10 @@ class Manifest:
                 self.logger.error(f"Invalid expression: {parsed_expression}")
             return []
 
-        return evaluate_expression(parsed)
+        res = evaluate_expression(parsed)
+        if self.logger:
+            self.logger.debug(f"Found {len(res)} items with tags {tag_names}")
+        return res
 
 
 # create a default manifest database, can be set to another path
