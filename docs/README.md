@@ -26,12 +26,91 @@ Table of Contents:
 
 ### Getting Help
 
-The help message is the authoritative source of information regarding Home Media Organizer
+The help message is the authoritative source of information regarding _Home Media Organizer_. For example, `hmo -h` list all subcommands,
 
 ```sh
-hmo --help
-hmo rename -h
+$ hmo -h
+
+usage: hmo [-h] [--version]
+           {classify,cleanup,compare,dedup,list,organize,remove-tags,rename,set-exif,set-tags,shift-exif,show-exif,show-tags,validate}
+           ...
+
+An versatile tool to maintain your home media library
+
+positional arguments:
+  {classify,cleanup,compare,dedup,list,organize,remove-tags,rename,set-exif,set-tags,shift-exif,show-exif,show-tags,validate}
+                        sub-command help
+    classify            Classify and assign results as tags to media files
+    cleanup             Remove unwanted files and empty directories
+    compare             Compare two sets of files
+    dedup               Remove duplicated files
+    list                List media files
+    organize            Organize files into appropriate folder
+    remove-tags         Remove tags associated with media files
+    rename              Rename files to their canonical names
+    set-exif            Set EXIF of media files
+    set-tags            Tag all or similar media files
+    shift-exif          Shift the date EXIF of media files
+    show-exif           Show EXIF metadata of media files
+    show-tags           Show tags associated with media files
+    validate            Identify corrupted media files
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+
+See documentation at https://github.com/BoPeng/home-media-organizer/
 ```
+
+and `hmo rename -h` lists all options for subcommand `rename`.
+
+```sh
+$ hmo rename -h
+
+usage: hmo rename [-h] [--format FORMAT] [--suffix SUFFIX] [--file-types [FILE_TYPES ...]]
+                  [--with-tags [WITH_TAGS ...]] [--without-tags [WITHOUT_TAGS ...]]
+                  [--with-exif [WITH_EXIF ...]] [--without-exif [WITHOUT_EXIF ...]] [-c CONFIG]
+                  [--search-paths SEARCH_PATHS [SEARCH_PATHS ...]] [--manifest MANIFEST] [-j JOBS] [-v] [-y]
+                  items [items ...]
+
+options:
+  -h, --help            show this help message and exit
+  --format FORMAT       Format of the filename. This option is usually set through configuration file. (default:
+                        None)
+  --suffix SUFFIX       A string that will be appended to filename (before file extension). (default: None)
+
+common options:
+  items                 Directories or files to be processed
+  --file-types [FILE_TYPES ...]
+                        File types to process, such as *.jpg, *.mp4, or 'video*'. (default: None)
+  --with-tags [WITH_TAGS ...]
+                        Process only media files with specified tag, one of the tags if multiple value are
+                        provided, or any tag if no value is specified. Logical expressions such as 'baby AND
+                        happy' are supported. (default: None)
+  --without-tags [WITHOUT_TAGS ...]
+                        Process only media files that do not contain specified tag, or any of the tags if
+                        multiple values are provided, or without any tag if no value is specified. Logical
+                        expressions such as 'baby AND happy' is allowed. (default: None)
+  --with-exif [WITH_EXIF ...]
+                        Process only media files with specified exif data, which can be "key=value", or "key"
+                        while key in the second case can contain "*" for wildcard matching. (default: None)
+  --without-exif [WITHOUT_EXIF ...]
+                        Process only media files without specified exif data. Both "key=value" and "key" and
+                        wildcard character "*" in key are supported. (default: None)
+  -c CONFIG, --config CONFIG
+                        A configuration file in toml format. The configuration will be merged with configuration
+                        from ~/.home-media-organizer/config.toml (default: None)
+  --search-paths SEARCH_PATHS [SEARCH_PATHS ...]
+                        Search paths for items to be processed if relative file or directory names are
+                        specified. The current directory will always be searched first. (default: None)
+  --manifest MANIFEST   Path to a manifest file that stores metadata such as file signature and tags. Default to
+                        ~/.home-media-organizer/manifest.db. (default: None)
+  -j JOBS, --jobs JOBS  Number of jobs for multiprocessing. (default: None)
+  -v, --verbose         Enable verbose output (default: False)
+  -y, --yes             Proceed with all actions without prompt. (default: False)
+```
+
+The help messages of all subcommands have a section **common options:**. These options are available for all subcommands so you generally need to look into the **options** section for subcommand-specific options.
 
 ### Configuration file
 
@@ -49,7 +128,6 @@ The format of the configuration is [TOML](https://toml.io/en/), and a typical co
 [default]
 search-paths = ['/Volumes/NAS/incoming']
 media-root = '/Volumes/NAS/MyPictures'
-manifest = '/Volumes/NAS/MyPictures/manifest.db'
 
 [rename]
 format = '%Y%m%d_%H%M%S'
@@ -64,21 +142,11 @@ file_types = [
     "*.PGI",
     ".LRC",
     "*.THM",
-    "Default.PLS",
-    ".picasa*.ini",
-    "Thumbs.db",
-    "*.ini",
-    "*.bat",
-    "autprint*"
+    "Default.PLS"
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands. You can learn more about these parameters with command like
-
-```
-hmo -h
-hmo rename -h
-```
+The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands.
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
 
