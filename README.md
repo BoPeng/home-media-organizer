@@ -193,6 +193,8 @@ Note that
 hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
 ```
 
+This step is actually recommended because some models may require additional downloads and dependencies (e.g. `emotion:deepface:dlib` needs a separate installation of `dlib`), so it is best to test a model before apply it to a large number of files.
+
 ### Find all your photos
 
 Your library contains tens of thousands of photos and it is challenging to find ones with you, your wife, or your children. Face recognition can be used to address this issue by tagging photos with names.

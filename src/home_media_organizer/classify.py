@@ -17,15 +17,21 @@ from .utils import cache
 #
 def classify_image(
     params: Tuple[
-        Path, Tuple[str], float | None, int | None, Tuple[str] | None, logging.Logger | None
+        Path,
+        Tuple[str],
+        float | None,
+        int | None,
+        Tuple[str] | None,
+        str | None,
+        logging.Logger | None,
     ]
 ) -> Tuple[Path, Dict[str, Any]]:
-    filename, models, threshold, top_k, tags, logger = params
+    filename, models, threshold, top_k, tags, suffix, logger = params
     res: Dict[str, Any] = {}
     fullname = filename.resolve()
     for model_name in models:
         model_class: Type[Classifier] = get_classifier_class(model_name)
-        model = model_class(model_name, threshold, top_k, tags, logger)
+        model = model_class(model_name, threshold, top_k, tags, suffix, logger)
         res |= model.classify(fullname)
 
     return fullname, res
@@ -48,6 +54,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                             args.threshold,
                             args.top_k,
                             (tuple(args.tags) if args.tags is not None else args.tags),
+                            args.suffix,
                             logger,
                         )
                         for x in iter_files(args)
@@ -74,6 +81,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                     args.threshold,
                     args.top_k,
                     (tuple(args.tags) if args.tags is not None else args.tags),
+                    args.suffix,
                     logger,
                 )
             )[1]
@@ -113,37 +121,49 @@ TClassifier = TypeVar("TClassifier", bound="Classifier")
 
 
 class Classifier(Generic[TClassifier]):
-    name = "generic"
-    default_backend = ""
-    allowed_backends: Tuple[str, ...] = ()
+    feature = "generic"
+    default_model = ""
+    allowed_models: Tuple[str, ...] = ()
+    default_option = ""
+    allowed_options: Tuple[str, ...] = ()
     labels: Tuple[str, ...] = ()
 
     def __init__(
         self,
-        model_name: str,
+        full_name: str,
         threshold: float | None,
         top_k: int | None,
         tags: Tuple[str] | None,
+        suffix: str | None,
         logger: logging.Logger | None,
     ) -> None:
-        if ":" in model_name:
-            self.backend = model_name.split(":", 1)[1]
-            if self.backend not in self.allowed_backends:
-                raise ValueError(
-                    f"""{self.name} does not support backend model {self.backend}. Please choose from {", ".join(self.allowed_backends)}"""
-                )
-        else:
-            self.backend = self.default_backend
+
+        pieces = full_name.split(":")
+        self.feature = pieces[0]
+        self.model_name: str = pieces[1] if len(pieces) > 1 else self.default_model
+        self.model_option: str = pieces[2] if len(pieces) > 2 else self.default_option
+        self.fullname = f"{self.feature}:{self.model_name}:{self.model_option}".rstrip(":")
         self.threshold = threshold
         self.top_k = top_k
         self.tags = tags
+        self.suffix = suffix or ""
         self.logger = logger
-        for tag in self.tags or []:
-            if tag not in self.labels:
-                raise ValueError(f"{self.name} does not support tag: {tag}")
+        if self.model_name not in self.allowed_models:
+            raise ValueError(
+                f"""{self.feature} does not support model {self.model_name}. Please choose from {", ".join(self.allowed_models)}"""
+            )
+        if self.model_option not in self.allowed_options:
+            raise ValueError(
+                f"""{self.feature} does not support model option {self.model_name}. Please choose from {", ".join(self.allowed_options)}"""
+            )
+        #
+        # tags could be specified across models
+        # for tag in self.tags or []:
+        #     if tag not in self.labels:
+        #         raise ValueError(f"{self.feature} does not support tag: {tag}")
 
-    def _cache_key(self, filename: Path) -> Tuple[str, str, str]:
-        return (self.name, self.backend or "", str(filename))
+    def _cache_key(self, filename: Path) -> Tuple[str, str, str, str]:
+        return (self.feature, self.model_name or "", self.model_option or "", str(filename))
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         raise NotImplementedError()
@@ -161,14 +181,19 @@ class Classifier(Generic[TClassifier]):
             if res:
                 cache.set(key, res, tag="classify")
         if self.logger is not None:
-            self.logger.debug(f"{filename=} model={self.name}:{self.backend or 'default'} {res=}")
+            self.logger.debug(
+                f"{filename=} model={self.fullname}:{self.model_option or 'default'} {res=}"
+            )
         return self._filter_tags(res)
 
 
-class NudeNetClassifier(Classifier):
-    name = "nudenet"
-    default_backend = ""
-    allowed_backends = ("nudenet",)
+class NSFWClassifier(Classifier):
+    feature = "nsfw"
+    default_model = "nudenet"
+    allowed_models = ("nudenet",)
+    default_option = ""
+    allowed_options = ()
+
     labels = (
         "FEMALE_GENITALIA_COVERED",
         "FACE_FEMALE",
@@ -203,7 +228,8 @@ class NudeNetClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            x["class"]: {k: v for k, v in x.items() if k != "class"} | {"model": self.name}
+            x["class"] + self.suffix: {k: v for k, v in x.items() if k != "class"}
+            | {"model": self.fullname}
             for x in res
             if "class" in x
             and (self.threshold is None or x["score"] > self.threshold)
@@ -241,10 +267,12 @@ deepface_backends = (
 
 
 class FaceClassifier(Classifier):
-    name = "face"
+    feature = "face"
+    default_model = "deepface"
+    allowed_models = ("deepface",)
+    default_option = "opencv"
+    allowed_options = deepface_backends
     labels = ("face",)
-    default_backend = "opencv"
-    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
@@ -253,7 +281,9 @@ class FaceClassifier(Classifier):
             return cast(
                 List[Dict[str, Any]],
                 DeepFace.extract_faces(
-                    img_path=str(filename), detector_backend=self.backend, enforce_detection=True
+                    img_path=str(filename),
+                    detector_backend=self.model_option,
+                    enforce_detection=True,
                 ),
             )
         except Exception as e:
@@ -263,14 +293,15 @@ class FaceClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            "face": np_to_scalar(
+            "face"
+            + self.suffix: np_to_scalar(
                 {
                     k: v
                     for k, v in x.items()
                     if k in ("facial_area", "left_eye", "right_eye", "confidence")
                 }
             )
-            | {"model": self.name}
+            | {"model": self.fullname}
             for x in res
             if "face" in x
             and (self.threshold is None or x["confidence"].item() > self.threshold)
@@ -279,10 +310,12 @@ class FaceClassifier(Classifier):
 
 
 class AgeClassifier(Classifier):
-    name = "age"
+    feature = "age"
+    default_model = "deepface"
+    allowed_models = ("deepface",)
+    default_option = "opencv"
+    allowed_options = deepface_backends
     labels = ("baby", "toddler", "teenager", "adult", "elderly")
-    default_backend = "opencv"
-    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
@@ -293,7 +326,7 @@ class AgeClassifier(Classifier):
                 DeepFace.analyze(
                     img_path=str(filename),
                     actions=["age"],
-                    detector_backend=self.backend,
+                    detector_backend=self.model_option,
                 ),
             )
         except Exception as e:
@@ -303,17 +336,19 @@ class AgeClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            get_age_label(x["age"]): np_to_scalar(x) | {"model": self.name}
+            get_age_label(x["age"]) + self.suffix: np_to_scalar(x) | {"model": self.fullname}
             for x in res
             if "age" in x and (self.tags is None or get_age_label(x["age"]) in self.tags)
         }
 
 
 class GenderClassifier(Classifier):
-    name = "gender"
+    feature = "gender"
+    default_model = "deepface"
+    allowed_models = ("deepface",)
+    default_option = "opencv"
+    allowed_options = deepface_backends
     labels = ("Woman", "Man")
-    default_backend = "opencv"
-    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
@@ -324,7 +359,7 @@ class GenderClassifier(Classifier):
                 DeepFace.analyze(
                     img_path=str(filename),
                     actions=["gender"],
-                    detector_backend=self.backend,
+                    detector_backend=self.model_option,
                     force_detection=True,
                 ),
             )
@@ -335,7 +370,8 @@ class GenderClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            x["dominant_gender"]: {x: np_to_scalar(y) for x, y in x.items()} | {"model": self.name}
+            x["dominant_gender"] + self.suffix: {x: np_to_scalar(y) for x, y in x.items()}
+            | {"model": self.fullname}
             for x in res
             if "dominant_gender" in x
             and (
@@ -347,10 +383,12 @@ class GenderClassifier(Classifier):
 
 
 class RaceClassifier(Classifier):
-    name = "race"
+    feature = "race"
+    default_model = "deepface"
+    allowed_models = ("deepface",)
+    default_option = "opencv"
+    allowed_options = deepface_backends
     labels = ("asian", "indian", "black", "white", "middle eastern", "latino hispanic")
-    default_backend = "opencv"
-    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
@@ -361,7 +399,7 @@ class RaceClassifier(Classifier):
                 DeepFace.analyze(
                     img_path=str(filename),
                     actions=["race"],
-                    detector_backend=self.backend,
+                    detector_backend=self.model_option,
                 ),
             )
         except Exception as e:
@@ -371,7 +409,8 @@ class RaceClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            x["dominant_race"]: {x: np_to_scalar(y) for x, y in x.items()} | {"model": self.name}
+            x["dominant_race"] + self.suffix: {x: np_to_scalar(y) for x, y in x.items()}
+            | {"model": self.fullname}
             for x in res
             if "dominant_race" in x
             and (
@@ -383,10 +422,12 @@ class RaceClassifier(Classifier):
 
 
 class EmotionClassifier(Classifier):
-    name = "emotion"
+    feature = "emotion"
+    default_model = "deepface"
+    allowed_models = ("deepface",)
+    default_option = "opencv"
+    allowed_options = deepface_backends
     labels = ("angry", "disgust", "fear", "happy", "sad", "surprise", "neutral")
-    default_backend = "opencv"
-    allowed_backends = deepface_backends
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
         from deepface import DeepFace  # type: ignore
@@ -397,7 +438,7 @@ class EmotionClassifier(Classifier):
                 DeepFace.analyze(
                     img_path=str(filename),
                     actions=["emotion"],
-                    detector_backend=self.backend,
+                    detector_backend=self.model_option,
                     enforce_detection=True,
                 ),
             )
@@ -408,8 +449,8 @@ class EmotionClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            x["dominant_emotion"]: {x: np_to_scalar(y) for x, y in x.items()}
-            | {"model": self.name}
+            x["dominant_emotion"] + self.suffix: {x: np_to_scalar(y) for x, y in x.items()}
+            | {"model": self.fullname}
             for x in res
             if "dominant_emotion" in x
             and (
@@ -422,12 +463,12 @@ class EmotionClassifier(Classifier):
 
 def get_classifier_class(model_name: str) -> Type[Classifier]:
     return {
-        NudeNetClassifier.name: NudeNetClassifier,
-        AgeClassifier.name: AgeClassifier,
-        GenderClassifier.name: GenderClassifier,
-        RaceClassifier.name: RaceClassifier,
-        EmotionClassifier.name: EmotionClassifier,
-        FaceClassifier.name: FaceClassifier,
+        NSFWClassifier.feature: NSFWClassifier,
+        AgeClassifier.feature: AgeClassifier,
+        GenderClassifier.feature: GenderClassifier,
+        RaceClassifier.feature: RaceClassifier,
+        EmotionClassifier.feature: EmotionClassifier,
+        FaceClassifier.feature: FaceClassifier,
     }[model_name.split(":")[0]]
 
 
@@ -460,6 +501,10 @@ def get_classify_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
         "--top-k",
         type=int,
         help="Choose the top k predictor.",
+    )
+    parser.add_argument(
+        "--suffix",
+        help="""A suffix appended to the default labels, in case multiple models are used for the same feature.""",
     )
     parser.add_argument(
         "--overwrite",
