@@ -114,9 +114,9 @@ TClassifier = TypeVar("TClassifier", bound="Classifier")
 
 class Classifier(Generic[TClassifier]):
     name = "generic"
-    default_backend = None
-    allowed_backends = ()
-    labels = ()
+    default_backend = ""
+    allowed_backends: Tuple[str, ...] = ()
+    labels: Tuple[str, ...] = ()
 
     def __init__(
         self,
@@ -142,7 +142,7 @@ class Classifier(Generic[TClassifier]):
             if tag not in self.labels:
                 raise ValueError(f"{self.name} does not support tag: {tag}")
 
-    def _cache_key(self, filename: Path) -> Tuple[str, str]:
+    def _cache_key(self, filename: Path) -> Tuple[str, str, str]:
         return (self.name, self.backend or "", str(filename))
 
     def _classify(self, filename: Path) -> List[Dict[str, Any]]:
@@ -167,7 +167,7 @@ class Classifier(Generic[TClassifier]):
 
 class NudeNetClassifier(Classifier):
     name = "nudenet"
-    default_backend = None
+    default_backend = ""
     allowed_backends = ("nudenet",)
     labels = (
         "FEMALE_GENITALIA_COVERED",
@@ -211,7 +211,7 @@ class NudeNetClassifier(Classifier):
         }
 
 
-deepface_models = [
+deepface_models = (
     "VGG-Face",
     "Facenet",
     "Facenet512",
@@ -222,9 +222,9 @@ deepface_models = [
     "Dlib",
     "SFace",
     "GhostFaceNet",
-]
+)
 
-deepface_backends = [
+deepface_backends = (
     "opencv",
     "retinaface",
     "mtcnn",
@@ -237,7 +237,7 @@ deepface_backends = [
     "yolov11m",
     "centerface",
     "skip",
-]
+)
 
 
 class AgeClassifier(Classifier):
