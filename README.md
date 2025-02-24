@@ -17,27 +17,6 @@
 
 A versatile tool to fix, organize, and maintain your home media library.
 
-- GitHub repo: <https://github.com/BoPeng/home-media-organizer.git>
-- Documentation: <https://home-media-organizer.readthedocs.io>
-- Free software: MIT
-
-Table of Contents:
-
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Basic Usages](#basic-usages)
-  - [List and count all photos](#list-and-count-all-photos)
-  - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
-  - [Organize files](#organize-files)
-- [Advanced Topics](#advanced-topics)
-  - [Compare against a separate collection of files](#compare-against-a-separate-collection-of-files)
-  - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
-  - [Filtering by tags](#filtering-by-tags)
-- [TODO](#todo)
-- [Credits](#credits)
-
-## Features
-
 - **Smart Organization**: Automatically organize photos and videos by date from EXIF data
 - **Duplicate Detection**: Find and remove duplicate media files
 - **Tag Management**: Add, remove, and search media files by custom tags
@@ -48,6 +27,21 @@ Table of Contents:
 - **EXIF Management**: View, set, and modify EXIF metadata
 - **File Validation**: Detect corrupted media files
 - **Flexible Configuration**: Customizable organization patterns and rules
+
+Table of Contents:
+
+- [Quick Start](#quick-start)
+- [Basic Usages](#basic-usages)
+  - [List and count all photos](#list-and-count-all-photos)
+  - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
+  - [Organize files](#organize-files)
+  - [Do you have a happy family?](#do-you-have-a-happy-family)
+  - [Find all your photos](#find-all-your-photos)
+- [Advanced Topics](#advanced-topics)
+  - [Compare against a separate collection of files](#compare-against-a-separate-collection-of-files)
+  - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
+- [TODO](#todo)
+- [Credits](#credits)
 
 ## Quick Start
 
@@ -197,6 +191,40 @@ Note that
 
 ```sh
 hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
+```
+
+### Find all your photos
+
+Your library contains tens of thousands of photos and it is challenging to find ones with you, your wife, or your children. Face recognition can be used to address this issue by tagging photos with names.
+
+To start tagging all photos with you, you need to find a few reference photos, preferably portraits that clearly show your facial characteristics. You should first try to see if `hmo` considers them the same person, using command
+
+```sh
+hmo set-tags 2020/20200102_123847.jpg --tags John --if-similar-to  2020/20200305_023047.jpg
+```
+
+and adjust `threshold` (default to 0.8) if necessary
+
+```sh
+hmo set-tags 2020/20200102_123847.jpg --tags John --if-similar-to  2020/20200305_023047.jpg --threshold 0.70
+```
+
+You then let `hmo` identify photo with faces resemble one of these photos, using command
+
+```sh
+hmo set-tags 2020 --tags John --if-similar-to 2020/20200102_123847.jpg 2020/20200305_023047.jpg --yes --threshold 0.70
+```
+
+If you are unsatisfied with the command, you can run
+
+```sh
+hmo remove-tags 2020 --tags John
+```
+
+to remove the tags and try different reference photos and threshold. Otherwise, enjoy an easy way to find all your photos
+
+```sh
+hmo list 2020 --with-tags 'John AND happy'
 ```
 
 ## Advanced Topics

@@ -81,7 +81,7 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         help="""Path to a manifest file that stores metadata such as file signature and tags.
             Default to ~/.home-media-organizer/manifest.db.""",
     )
-    parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
+    parser.add_argument("-j", "--jobs", type=int, help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument(
         "-y",

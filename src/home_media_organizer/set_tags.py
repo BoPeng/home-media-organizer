@@ -25,11 +25,16 @@ def verify_files(
     from deepface import DeepFace  # type: ignore
 
     for benchmark_file in benchmark_files:
-        res = DeepFace.verify(img1_path=filename, img2_path=benchmark_file)
-        if logger is not None:
-            logger.debug(f"Comparing {filename} with {benchmark_file}: {res}")
-        if res["threshold"] > threshold:
-            return filename, True
+        try:
+            res = DeepFace.verify(img1_path=filename, img2_path=benchmark_file)
+            if logger is not None:
+                logger.debug(f"Comparing {filename} with {benchmark_file}: {res}")
+            if res["threshold"] > threshold:
+                return filename, True
+        except Exception as e:
+            if logger is not None:
+                logger.debug(f"Error comparing {filename} with {benchmark_file}: {e}")
+            continue
     return filename, False
 
 
@@ -44,30 +49,49 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         metadata[k] = v
     tags = {x: metadata for x in args.tags}
 
-    with Pool(args.jobs or None) as pool:
-        for item, match in tqdm(
-            pool.imap(
-                verify_files,
-                {
-                    (
-                        x,
+    if args.confirmed:
+        with Pool(args.jobs or None) as pool:
+            for item, match in tqdm(
+                pool.imap(
+                    verify_files,
+                    {
                         (
-                            tuple(cast(List[str], args.if_similar_to))
-                            if args.if_similar_to is not None
-                            else None
-                        ),
-                        float(args.threshold),
-                        logger,
-                    )
-                    for x in iter_files(args)
-                },
-            ),
-            desc="Comparing media",
-        ):
-            if not match:
-                continue
-            MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
-            cnt += 1
+                            x,
+                            (
+                                tuple(cast(List[str], args.if_similar_to))
+                                if args.if_similar_to is not None
+                                else None
+                            ),
+                            float(args.threshold),
+                            logger,
+                        )
+                        for x in iter_files(args)
+                    },
+                ),
+                desc="Comparing media",
+            ):
+                if not match:
+                    continue
+                MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
+                cnt += 1
+    else:
+        # do the samething sequentially
+        for item in tqdm(iter_files(args)):
+            match = verify_files(
+                (
+                    item,
+                    (
+                        tuple(cast(List[str], args.if_similar_to))
+                        if args.if_similar_to is not None
+                        else None
+                    ),
+                    float(args.threshold),
+                    logger,
+                )
+            )[1]
+            if match:
+                MediaFile(item).set_tags(tags, args.overwrite, args.confirmed, logger)
+                cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files tagged.")
 
@@ -95,7 +119,7 @@ def get_set_tags_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.9,
+        default=0.8,
         help="""A threshold for similarity between pictures. If multiple --if-similar-to files are specified,
             the media need to be similar to at least one of the files.""",
     )

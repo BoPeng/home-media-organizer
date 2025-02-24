@@ -523,7 +523,7 @@ class MediaFile:
             manifest.add_tags(self.fullname, tags)
         if logger is not None:
             logger.info(
-                f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.filename}[/blue]"""
+                f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.fullname}[/blue]"""
             )
 
     def remove_tags(
