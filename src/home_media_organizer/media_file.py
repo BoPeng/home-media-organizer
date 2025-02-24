@@ -579,7 +579,7 @@ class MediaFile:
         if confirmed is False:
             if logger is not None:
                 logger.info(
-                    f"[green]DRYRUN[/green] Would remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"
+                    f"""[green]DRYRUN[/green] Would remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"""
                 )
         elif confirmed or get_response(
             f"""Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"""
