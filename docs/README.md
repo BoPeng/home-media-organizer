@@ -466,47 +466,15 @@ hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED B
 
 _home-media-organizer_ currently supports the following models and tags
 
-| model   | tags                       | comment                           |
-| ------- | -------------------------- | --------------------------------- |
-| nudenet | `FEMALE_GENITALIA_COVERED` |                                   |
-|         | `FACE_FEMALE`              |                                   |
-|         | `BUTTOCKS_EXPOSED`         |                                   |
-|         | `FEMALE_BREAST_EXPOSED`    |                                   |
-|         | `FEMALE_GENITALIA_EXPOSED` |                                   |
-|         | `MALE_BREAST_EXPOSED`      |                                   |
-|         | `ANUS_EXPOSED`             |                                   |
-|         | `FEET_EXPOSED`             |                                   |
-|         | `BELLY_COVERED`            |                                   |
-|         | `FEET_COVERED`             |                                   |
-|         | `ARMPITS_COVERED`          |                                   |
-|         | `ARMPITS_EXPOSED`          |                                   |
-|         | `FACE_MALE`                |                                   |
-|         | `BELLY_EXPOSED`            |                                   |
-|         | `MALE_GENITALIA_EXPOSED`   |                                   |
-|         | `ANUS_COVERED`             |                                   |
-|         | `FEMALE_BREAST_COVERED`    |                                   |
-|         | `BUTTOCKS_COVERED`         |                                   |
-| face    | `face`                     | Set `face` if a face is detected. |
-| age     | `baby`                     | age < 3                           |
-|         | `toddler`                  | 3 <= age < 12                     |
-|         | `teenager`                 | 12 <= age < 20                    |
-|         | `adult`                    | 20 <= age < 60                    |
-|         | `elderly`                  | age >= 60                         |
-| gender  | `Male`                     |                                   |
-|         | `Female`                   |                                   |
-| race    | `asian`                    |                                   |
-|         | `white`                    |                                   |
-|         | `middle eastern`           |                                   |
-|         | `indian`                   |                                   |
-|         | `latino`                   |                                   |
-|         | `black`                    |                                   |
-| emotion | `angry`                    |                                   |
-|         | `fear`                     |                                   |
-|         | `neutral`                  |                                   |
-|         | `sad`                      |                                   |
-|         | `disgust`                  |                                   |
-|         | `happy`                    |                                   |
-|         | `surprise`                 |                                   |
+| model              | models     | tags                                                                                                                                                                                                                                                                                                                                                          | comment                           |
+| ------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| nsfw               | `nudenet`  | `FEMALE_GENITALIA_COVERED`, `FACE_FEMALE` , `BUTTOCKS_EXPOSED` , `FEMALE_BREAST_EXPOSED` , `FEMALE_GENITALIA_EXPOSED` , `MALE_BREAST_EXPOSED` , `ANUS_EXPOSED` , `FEET_EXPOSED` ,`BELLY_COVERED` , `FEET_COVERED` ,`ARMPITS_COVERED` , `ARMPITS_EXPOSED` , `FACE_MALE` , `BELLY_EXPOSED` , `MALE_GENITALIA_EXPOSED`, `ANUS_COVERED` , `FEMALE_BREAST_COVERED` |                                   |
+| `BUTTOCKS_COVERED` |            |
+| face               | `deepface` | `face`                                                                                                                                                                                                                                                                                                                                                        | Set `face` if a face is detected. |
+| age                | `deepface` | `baby` (age < 3), `toddler` (3 <= age < 12), `teenager` (12 <= age < 20), `adult` (20 <= age < 60 ), `elderly` ( age >= 60 )                                                                                                                                                                                                                                  |                                   |
+| gender             | `deepface` | `Male` , `Female`                                                                                                                                                                                                                                                                                                                                             |                                   |
+| race               | `deepface` | `asian` , `white` , `middle eastern` , `indian`, `latino`, `black`                                                                                                                                                                                                                                                                                            |                                   |
+| emotion            | `deepface` | `angry` , `fear` , `neutral` , `sad`,`disgust`, `happy` `surprise`                                                                                                                                                                                                                                                                                            |                                   |
 
 ## Working with EXIF
 

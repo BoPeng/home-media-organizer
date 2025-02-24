@@ -441,9 +441,10 @@ def get_classify_parser(subparsers: argparse._SubParsersAction) -> argparse.Argu
     parser.add_argument(
         "--models",
         nargs="+",
-        help="""Machine learning models used to tag media. The model names
-            can be age, emotion, with optional model names such as "age:VGG-Face"
-            """,
+        help="""Machine learning models used to tag media. Each model can be a
+            feature such as "face", "age", "gender", "emotion", and "nsfw", followed
+            by an optional model name. Please see the documentation for a list of
+            supported features and models.""",
     )
     parser.add_argument(
         "--tags",
