@@ -168,7 +168,7 @@ The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, defau
 To find out the emotions of people in the photos, you first need to annotate all pictures with appropriate tags, with command
 
 ```sh
-hmo classify 2025 --model emotion --yes
+hmo classify 2025 --models emotion --yes
 ```
 
 This command will tag all photos with faces with emotions such as `angry`, `fear`, `neutral`, `sad`, and `happy`. With tags assigned to these photos, you can count the number of `happy` photos with command
@@ -183,7 +183,17 @@ and compare that to the results with
 hmo list 2025 --with-tags sad | wc -l
 ```
 
-If you want to see how this command works, find a picture and run the classifier with `-v` (verbose) option.
+Following the same idea, you can assign photos with tags such as `baby`, `toddler`, and `adult` using the `age` model and list photos with sad adults using
+
+```sh
+hmo classify 2025 --models age emotion -y
+hmo list 2025 --with-tags 'sad AND adult'
+```
+
+Note that
+
+1. `sad AND adult` is needed because `--with-tags sad adult` will list all photos with `sad` or `adult` tags.
+2. If you want to see how this command works, find a picture and run the classifier with `-v` (verbose) option.
 
 ```sh
 hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
@@ -257,38 +267,6 @@ You can set the modified date as follows:
 ```
 
 However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
-
-### Filtering by tags
-
-Options `--with-tags` and `--without-tags` can be used to select media files for all operations if operations `hmo set-tags` and `hmo classify` has been used to set various tags to media files.
-
-You can use command
-
-```sh
-hmo show-tags 2009
-```
-
-to show all files with any tags, or use
-
-```sh
-hmo list 2009 --with-tags happy
-```
-
-to see all pictures with a happy face (classified by `hmo classify --model emotion`).
-
-By default
-
-```sh
-hmo list 2009 --with-tags  baby happy
-```
-
-will show all media files with either a `baby` or a `happy` tag, but you can narrow down the search by photos with happy babies as well
-
-```sh
-hmo list 2009 --with-tags  'baby AND happy'
-```
-
-Conditions such as `baby AND (happy OR sad)` if allowed, and you will need to quote tags if the tags contains special characters.
 
 ## TODO
 
