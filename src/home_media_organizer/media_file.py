@@ -132,6 +132,7 @@ def filename_date(filename: Path) -> str:
 #
 date_func = {
     ".jpg": (image_date, exiftool_date, filename_date),
+    ".png": (image_date, exiftool_date, filename_date),
     ".jpeg": (image_date, exiftool_date, filename_date),
     ".tiff": (image_date,),
     ".cr2": (filename_date, exiftool_date, image_date),
@@ -169,9 +170,11 @@ class MediaFile:
         except Exception:
             return {}
 
-    def get_date(self: "MediaFile") -> str:
+    def get_date(
+        self: "MediaFile", confirmed: bool | None = None, logger: Logger | None = None
+    ) -> str:
         if self.date is None:
-            funcs = date_func[self.ext]
+            funcs = date_func[self.ext.lower()]
             for func in funcs:
                 try:
                     self.date = func(self.fullname)
@@ -183,12 +186,33 @@ class MediaFile:
                 except Exception:
                     continue
             if not self.date:
+                modify_time = self.fullname.stat().st_mtime
+                modify_date = datetime.fromtimestamp(modify_time)
+                formatted_date = modify_date.strftime("%Y%m%d_%H%M%S")
+                if confirmed is False:
+                    if logger is not None:
+                        logger.info(
+                            f"[green]DRYRUN[/green] Would use file modify date [blue]{formatted_date}[/blue] as file date."
+                        )
+                elif confirmed or get_response(
+                    f"Failed to retrieve datetime of {self.fullname.name}, using file modify date {formatted_date} instead?"
+                ):
+                    if logger is not None:
+                        logger.info(
+                            f"Use file modify date {formatted_date} for {self.fullname.name}"
+                        )
+                    return formatted_date
                 return "19000101_000000"
             self.date = self.date.replace(":", "").replace(" ", "_")
         return self.date
 
-    def intended_prefix(self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S") -> str:
-        date = self.get_date()
+    def intended_prefix(
+        self: "MediaFile",
+        filename_format: str = "%Y%m%d_%H%M%S",
+        confirmed: bool | None = None,
+        logger: Optional[Logger] = None,
+    ) -> str:
+        date = self.get_date(confirmed=confirmed, logger=logger)
         if not date:
             date = Path(self.filename).stem
             date = date.replace(":", "").replace(" ", "_")
@@ -202,14 +226,30 @@ class MediaFile:
             return Path(self.filename).stem
 
     def intended_name(
-        self: "MediaFile", filename_format: str = "%Y%m%d_%H%M%S", suffix: str = ""
+        self: "MediaFile",
+        filename_format: str = "%Y%m%d_%H%M%S",
+        suffix: str = "",
+        confirmed: bool | None = None,
+        logger: Optional[Logger] = None,
     ) -> str:
-        return self.intended_prefix(filename_format=filename_format) + suffix + self.ext.lower()
+        return (
+            self.intended_prefix(
+                filename_format=filename_format, confirmed=confirmed, logger=logger
+            )
+            + suffix
+            + self.ext.lower()
+        )
 
     def intended_path(
-        self: "MediaFile", root: str, dir_pattern: str, album: str, album_sep: str
+        self: "MediaFile",
+        root: str,
+        dir_pattern: str,
+        album: str,
+        album_sep: str,
+        confirmed: bool | None = None,
+        logger: Optional[Logger] = None,
     ) -> Path:
-        date = self.get_date()
+        date = self.get_date(confirmed=confirmed, logger=logger)
         try:
             filedate = datetime.strptime(date[: len("XXXXXXXX_XXXXXX")], "%Y%m%d_%H%M%S")
             subdir = filedate.strftime(
@@ -400,11 +440,15 @@ class MediaFile:
         logger: Logger | None = None,
         attempt: int = 0,
     ) -> None:
-        intended_name = self.intended_name(filename_format=filename_format, suffix=suffix)
+        intended_name = self.intended_name(
+            filename_format=filename_format, suffix=suffix, confirmed=confirmed, logger=logger
+        )
         # allow the name to be xxxxxx_xxxxx-someotherstuff
         if self.filename == intended_name:
             return
-        elif self.filename.startswith(self.intended_prefix(filename_format=filename_format)):
+        elif self.filename.startswith(
+            self.intended_prefix(filename_format=filename_format, confirmed=confirmed)
+        ):
             if logger is not None:
                 logger.info(
                     f"File [blue]{self.filename}[/blue] already has the intended date prefix."
@@ -472,7 +516,9 @@ class MediaFile:
         logger: Logger | None = None,
         attempt: int = 0,
     ) -> None:
-        intended_path = self.intended_path(media_root, dir_pattern, album, album_sep)
+        intended_path = self.intended_path(
+            media_root, dir_pattern, album, album_sep, confirmed=confirmed, logger=logger
+        )
         if intended_path.is_relative_to(self.fullname):
             return
 

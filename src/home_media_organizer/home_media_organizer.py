@@ -23,8 +23,12 @@ def iter_files(
 ) -> Generator[Path, None, None]:
     def allowed_filetype(filename: Path) -> bool:
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
+            if logger is not None:
+                logger.debug(f"Ignoring {filename} due to failed --file-types matching.")
             return False
         if filename.suffix.lower() not in date_func:
+            if logger is not None:
+                logger.debug(f"Ignoring {filename} due to unsupported filetype")
             return False
         return True
 
@@ -102,8 +106,12 @@ def iter_files(
             if not allowed_filetype(item):
                 continue
             if args.with_tags is not None and str(item) not in files_with_tags:
+                if logger is not None:
+                    logger.debug(f"Ignoring {item} due to failed --with-tags matching.")
                 continue
             if args.without_tags is not None and str(item) in files_with_unwanted_tags:
+                if logger is not None:
+                    logger.debug(f"Ignoring {item} due to failed --without-tags matching.")
                 continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
@@ -113,6 +121,10 @@ def iter_files(
                         if not x.startswith("File:")
                     }
                 if not allowed_metadata(metadata):
+                    if logger is not None:
+                        logger.debug(
+                            f"Ignoring {item} due to failed --with-exif or --without-exif matching."
+                        )
                     continue
             yield item
         else:
@@ -124,6 +136,10 @@ def iter_files(
                 if args.with_tags is not None and not any(
                     f.startswith(root) for f in files_with_tags
                 ):
+                    if logger is not None:
+                        logger.debug(
+                            f"Ignoring {root} because no files under this directory has matching tag."
+                        )
                     continue
                 rootpath = Path(root)
                 if args.with_exif or args.without_exif:
@@ -155,6 +171,10 @@ def iter_files(
                             args.without_tags is not None
                             and str(rootpath / f) in files_with_unwanted_tags
                         ):
+                            if logger is not None:
+                                logger.debug(
+                                    f"Ignoring {rootpath/f} due to failed --with-tags or --without-tags matching."
+                                )
                             continue
                         if allowed_filetype(Path(f)):
                             yield rootpath / f
