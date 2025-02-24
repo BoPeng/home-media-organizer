@@ -57,8 +57,13 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
         for filename in sorted_files[:-1]:
             if logger is not None:
                 logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
-            if args.confirmed or get_response("Remove it?"):
+            if args.confirmed is False:
+                if logger is not None:
+                    logger.info(f"[green]DRYRUN[/green] Would remove {filename}")
+            elif args.confirmed or get_response("Remove it?"):
                 os.remove(filename)
+                if logger is not None:
+                    logger.info(f"[red]{filename}[/red] is removed.")
                 removed_cnt += 1
     if logger is not None:
         logger.info(
@@ -71,7 +76,7 @@ def get_dedup_parser(subparsers: argparse._SubParsersAction) -> argparse.Argumen
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "dedup",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Remove duplicated files.",
+        help="Remove duplicated files",
     )
     parser.add_argument(
         "--no-cache",

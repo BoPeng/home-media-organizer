@@ -101,9 +101,9 @@ def iter_files(
         if item.is_file():
             if not allowed_filetype(item):
                 continue
-            if args.with_tags is not None and item not in files_with_tags:
+            if args.with_tags is not None and str(item) not in files_with_tags:
                 continue
-            if args.without_tags is not None and item in files_with_unwanted_tags:
+            if args.without_tags is not None and str(item) in files_with_unwanted_tags:
                 continue
             if args.with_exif or args.without_exif:
                 with ExifToolHelper() as e:
@@ -132,10 +132,10 @@ def iter_files(
                         rootpath / f
                         for f in files
                         if allowed_filetype(Path(f))
-                        and (args.with_tags is None or rootpath / f in files_with_tags)
+                        and (args.with_tags is None or str(rootpath / f) in files_with_tags)
                         and (
                             args.without_tags is None
-                            or rootpath / f not in files_with_unwanted_tags
+                            or str(rootpath / f) not in files_with_unwanted_tags
                         )
                     ]
                     if not qualified_files:
@@ -150,10 +150,10 @@ def iter_files(
                 else:
                     for f in files:
                         if (
-                            args.with_tags is not None and rootpath / f not in files_with_tags
+                            args.with_tags is not None and str(rootpath / f) not in files_with_tags
                         ) or (
                             args.without_tags is not None
-                            and rootpath / f in files_with_unwanted_tags
+                            and str(rootpath / f) in files_with_unwanted_tags
                         ):
                             continue
                         if allowed_filetype(Path(f)):

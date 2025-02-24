@@ -63,7 +63,7 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
     if args.no_cache:
         clear_cache(tag="validate")
 
-    if args.confirmed or not args.remove:
+    if args.confirmed is not None or not args.remove:
         with Pool(args.jobs or None) as pool:
             # get file size
             for item, new_hash, corrupted in tqdm(
@@ -88,18 +88,26 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
             if existing_hash is not None and existing_hash != new_hash:
                 if logger is not None:
                     logger.warning(f"[red][bold]{item}[/bold] is corrupted.[/red]")
-                if args.remove and (args.confirmed or get_response("Remove it?")):
-                    if logger is not None:
-                        logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
-                    os.remove(item)
+                if args.remove:
+                    if args.confirmed is False:
+                        if logger is not None:
+                            logger.info(f"[green]DRYRUN[/green] Would remove {item}.")
+                    elif args.confirmed or get_response("Remove it?"):
+                        if logger is not None:
+                            logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
+                        os.remove(item)
                 continue
             if corrupted:
                 if logger is not None:
                     logger.warning(f"[red][bold]{item}[/bold] is not playable.[/red]")
-                if args.remove and (args.confirmed or get_response("Remove it?")):
-                    if logger is not None:
-                        logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
-                    os.remove(item)
+                if args.remove:
+                    if args.confirmed is False:
+                        if logger is not None:
+                            logger.info(f"[green]DRYRUN[/green] Would remove {item}.")
+                    elif args.confirmed or get_response("Remove it?"):
+                        if logger is not None:
+                            logger.info(f"[red][bold]{item}[/bold] is removed.[/red]")
+                        os.remove(item)
                 continue
             if args.manifest:
                 manifest.set_hash(item, new_hash)

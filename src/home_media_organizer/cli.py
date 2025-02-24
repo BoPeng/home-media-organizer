@@ -81,14 +81,22 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         help="""Path to a manifest file that stores metadata such as file signature and tags.
             Default to ~/.home-media-organizer/manifest.db.""",
     )
-    parser.add_argument("-j", "--jobs", help="Number of jobs for multiprocessing.")
+    parser.add_argument("-j", "--jobs", type=int, help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument(
+    prompt_parser = parser.add_mutually_exclusive_group()
+    prompt_parser.add_argument(
         "-y",
         "--yes",
         action="store_true",
-        dest="confirmed",
+        dest="batch",
         help="Proceed with all actions without prompt.",
+    )
+    prompt_parser.add_argument(
+        "-n",
+        "--no",
+        action="store_true",
+        dest="dryrun",
+        help="Run in dryrun mode, similar to answering no for all prompts.",
     )
 
 
@@ -119,6 +127,8 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         get_show_tags_parser(subparsers),
         get_validate_parser(subparsers),
     ]:
+        # we do not use parent parser mechanism because we would like to
+        # create a separate argument group for each subcommand
         add_common_arguments(subparser)
 
     # load configuration
@@ -137,7 +147,13 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)
-    manifest.init_db(args.manifest)
+    #
+    if args.batch is True:
+        args.confirmed = True
+    elif args.dryrun is True:
+        args.confirmed = False
+    else:
+        args.confirmed = None
     return args
 
 
@@ -157,12 +173,14 @@ def app(arg_list: Optional[List[str]] = None) -> int:
     )
 
     logger = logging.getLogger(args.command)
+    manifest.init_db(args.manifest, logger=logger)
+
     # calling the associated functions
     try:
         args.func(args, logger)
     except KeyboardInterrupt:
         logger.info("Exiting...")
-        return 130
+        return 1
     return 0
 
 

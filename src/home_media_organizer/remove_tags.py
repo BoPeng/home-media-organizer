@@ -2,7 +2,7 @@ import argparse
 import logging
 
 from .home_media_organizer import iter_files
-from .utils import manifest
+from .media_file import MediaFile
 
 
 #
@@ -15,7 +15,7 @@ def remove_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None
         args.with_tags = args.tags
     #
     for item in iter_files(args, logger=logger):
-        manifest.remove_tags(item, args.tags)
+        MediaFile(item).remove_tags(args.tags, args.confirmed, logger)
         cnt += 1
     if logger is not None:
         logger.info(f"[blue]{cnt}[/blue] files untagged.")

@@ -17,26 +17,6 @@
 
 A versatile tool to fix, organize, and maintain your home media library.
 
-- GitHub repo: <https://github.com/BoPeng/home-media-organizer.git>
-- Documentation: <https://home-media-organizer.readthedocs.io>
-- Free software: MIT
-
-Table of Contents:
-
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Basic Usages](#basic-usages)
-  - [List and count all photos](#list-and-count-all-photos)
-  - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
-  - [Organize files](#organize-files)
-- [Advanced Topics](#advanced-topics)
-  - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
-  - [Filtering by tags](#filtering-by-tags)
-- [TODO](#todo)
-- [Credits](#credits)
-
-## Features
-
 - **Smart Organization**: Automatically organize photos and videos by date from EXIF data
 - **Duplicate Detection**: Find and remove duplicate media files
 - **Tag Management**: Add, remove, and search media files by custom tags
@@ -47,6 +27,21 @@ Table of Contents:
 - **EXIF Management**: View, set, and modify EXIF metadata
 - **File Validation**: Detect corrupted media files
 - **Flexible Configuration**: Customizable organization patterns and rules
+
+Table of Contents:
+
+- [Quick Start](#quick-start)
+- [Basic Usages](#basic-usages)
+  - [List and count all photos](#list-and-count-all-photos)
+  - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
+  - [Organize files](#organize-files)
+  - [Do you have a happy family?](#do-you-have-a-happy-family)
+  - [Find all your photos](#find-all-your-photos)
+- [Advanced Topics](#advanced-topics)
+  - [Compare against a separate collection of files](#compare-against-a-separate-collection-of-files)
+  - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
+- [TODO](#todo)
+- [Credits](#credits)
 
 ## Quick Start
 
@@ -162,7 +157,111 @@ to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
 
 The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
+### Do you have a happy family?
+
+To find out the emotions of people in the photos, you first need to annotate all pictures with appropriate tags, with command
+
+```sh
+hmo classify 2025 --models emotion --yes
+```
+
+This command will tag all photos with faces with emotions such as `angry`, `fear`, `neutral`, `sad`, and `happy`. With tags assigned to these photos, you can count the number of `happy` photos with command
+
+```sh
+hmo list 2025 --with-tags happy | wc -l
+```
+
+and compare that to the results with
+
+```sh
+hmo list 2025 --with-tags sad | wc -l
+```
+
+Following the same idea, you can assign photos with tags such as `baby`, `toddler`, and `adult` using the `age` model and list photos with sad adults using
+
+```sh
+hmo classify 2025 --models age emotion -y
+hmo list 2025 --with-tags 'sad AND adult'
+```
+
+Note that
+
+1. `sad AND adult` is needed because `--with-tags sad adult` will list all photos with `sad` or `adult` tags.
+2. If you want to see how this command works, find a picture and run the classifier with `-v` (verbose) option.
+
+```sh
+hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
+```
+
+This step is actually recommended because some models may require additional downloads and dependencies (e.g. `emotion:deepface:dlib` needs a separate installation of `dlib`), so it is best to test a model before apply it to a large number of files.
+
+### Find all your photos
+
+Your library contains tens of thousands of photos and it is challenging to find ones with you, your wife, or your children. Face recognition can be used to address this issue by tagging photos with names.
+
+To start tagging all photos with you, you need to find a few reference photos, preferably portraits that clearly show your facial characteristics. You should first try to see if `hmo` considers them the same person, using command
+
+```sh
+hmo set-tags 2020/20200102_123847.jpg --tags John --if-similar-to  2020/20200305_023047.jpg
+```
+
+and adjust `threshold` (default to 0.8) if necessary
+
+```sh
+hmo set-tags 2020/20200102_123847.jpg --tags John --if-similar-to  2020/20200305_023047.jpg --threshold 0.70
+```
+
+You then let `hmo` identify photo with faces resemble one of these photos, using command
+
+```sh
+hmo set-tags 2020 --tags John --if-similar-to 2020/20200102_123847.jpg 2020/20200305_023047.jpg --yes --threshold 0.70
+```
+
+If you are unsatisfied with the command, you can run
+
+```sh
+hmo remove-tags 2020 --tags John
+```
+
+to remove the tags and try different reference photos and threshold. Otherwise, enjoy an easy way to find all your photos
+
+```sh
+hmo list 2020 --with-tags 'John AND happy'
+```
+
 ## Advanced Topics
+
+### Compare against a separate collection of files
+
+You may have a separate copy of files, for example, files backed up to DVD or some other media, or files dumped from your camera a while ago, and you would like to know if any files have been changed, removed, or if they have been properly organized into your home library.
+
+Such problems involves the comparison between two sets of files and are performed by command `hmo compare`. This command accepts parameters such as `--A-and-B`, `--A-only`, `--B-only`, and `--A-or-B` where `A` refers to the targets of `hmo compare` command and `B` refers to the files or directories after parameter `--B-only`.
+
+For example
+
+```sh
+hmo compare 2025 --B-only my_local_directory
+```
+
+list files under `my_local_directory` that are not under `2025`. This command compares based on the **content of the files** so it does not matter if the files have been renamed before copying into `2025`.
+
+If you would like to include files that have been renamed as `--B-only`, use the `--by` option:
+
+```sh
+hmo compare 2025 --B-only my_local_directory --by name_and_content
+```
+
+If you would like to see how the files have been mapped between two sets of files, you can do something like
+
+```sh
+hmo compare 2025 --A-and-B my_local_directory
+```
+
+The output will be similar to
+
+```text
+2025/20250102_020305.jpg=my_local_directory/IMG_4885.jpg
+```
 
 ### Modifying `File:FileModifyDate`
 
@@ -198,38 +297,6 @@ You can set the modified date as follows:
 ```
 
 However, file modify date is **NOT** part of the file content. If you copy the file to another location, the new file will have a new modified date and you may need to run the `hmo set-exif --from-filename` again.
-
-### Filtering by tags
-
-Options `--with-tags` and `--without-tags` can be used to select media files for all operations if operations `hmo set-tags` and `hmo classify` has been used to set various tags to media files.
-
-You can use command
-
-```sh
-hmo show-tags 2009
-```
-
-to show all files with any tags, or use
-
-```sh
-hmo list 2009 --with-tags happy
-```
-
-to see all pictures with a happy face (classified by `hmo classify --model emotion`).
-
-By default
-
-```sh
-hmo list 2009 --with-tags  baby happy
-```
-
-will show all media files with either a `baby` or a `happy` tag, but you can narrow down the search by photos with happy babies as well
-
-```sh
-hmo list 2009 --with-tags  'baby AND happy'
-```
-
-Conditions such as `baby AND (happy OR sad)` if allowed, and you will need to quote tags if the tags contains special characters.
 
 ## TODO
 
