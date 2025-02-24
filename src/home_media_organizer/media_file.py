@@ -533,7 +533,7 @@ class MediaFile:
         logger: Logger | None = None,
     ) -> None:
         if not confirmed and not get_response(
-            f"Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"
+            f"""Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"""
         ):
             return
         manifest.remove_tags(self.fullname, tags)

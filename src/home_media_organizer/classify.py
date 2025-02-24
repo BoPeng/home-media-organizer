@@ -242,7 +242,7 @@ deepface_backends = (
 
 class FaceClassifier(Classifier):
     name = "face"
-    labels = ("Face",)
+    labels = ("face",)
     default_backend = "opencv"
     allowed_backends = deepface_backends
 
@@ -263,7 +263,7 @@ class FaceClassifier(Classifier):
 
     def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
-            "Face": np_to_scalar(
+            "face": np_to_scalar(
                 {
                     k: v
                     for k, v in x.items()
