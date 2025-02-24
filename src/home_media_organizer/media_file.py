@@ -280,13 +280,22 @@ class MediaFile:
                     if logger is not None:
                         logger.info(f"[magenta]Ignore future date {new_datetime}[/magenta].")
                 elif k == "File:FileModifyDate":
-                    if confirmed or get_response(
+                    if confirmed is False:
+                        if logger is not None:
+                            logger.info(
+                                f"[green]DRYRUN[/green] Would modify file modified date {self.fullname.name} to {new_datetime}."
+                            )
+                    elif confirmed or get_response(
                         f"Modify file modified date {self.fullname.name} to {new_datetime}?"
                     ):
                         # Convert the new modification time to a timestamp
                         new_mod_time = new_datetime.timestamp()
                         # Set the new modification time
                         os.utime(self.fullname, (new_mod_time, new_mod_time))
+                        if logger is not None:
+                            logger.info(
+                                f"Set File:FileModifyDate of [magenta]{self.filename}[/magenta] to [blue]{new_datetime}[/blue]"
+                            )
                 elif k.startswith("File:"):
                     if logger is not None:
                         logger.info(f"[magenta]Ignore non-EXIF meta information {k}[/magenta]")
@@ -301,8 +310,15 @@ class MediaFile:
                         f"Shift {k} from [magenta]{metadata[k]}[/magenta] to [blue]{new_v}[/blue]"
                     )
             #
-            if confirmed or get_response(f"Shift dates of {self.fullname.name} as shown above?"):
+            if confirmed is False:
+                if logger is not None:
+                    logger.info(
+                        f"[green]DRYRUN[/green] Would shift dates of {self.fullname.name} as shown above?"
+                    )
+            elif confirmed or get_response(f"Shift dates of {self.fullname.name} as shown above?"):
                 e.set_tags([self.fullname], tags=changes)
+                if logger is not None:
+                    logger.info(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
 
     def set_exif(
         self: "MediaFile",
@@ -321,7 +337,12 @@ class MediaFile:
                         logger.info(f"[magenta]Ignore existing {k} = {metadata[k]}[/magenta]")
                     continue
                 if k == "File:FileModifyDate":
-                    if confirmed or get_response(
+                    if confirmed is False:
+                        if logger is not None:
+                            logger.info(
+                                f"[green]DRYRUN[/green] Would modify file modified date {self.fullname.name} to {v}."
+                            )
+                    elif confirmed or get_response(
                         f"Modify file modified date {self.fullname.name} to {v}?"
                     ):
                         try:
@@ -348,7 +369,12 @@ class MediaFile:
                     changes[k] = v
             if not changes:
                 return
-            if confirmed or get_response(f"Set exif of {self.fullname}"):
+            if confirmed is False:
+                if logger is not None:
+                    logger.info(
+                        f"[green]DRYRUN[/green] Would set EXIF of {self.fullname} as shown above?"
+                    )
+            elif confirmed or get_response(f"Set exif of {self.fullname}"):
                 if logger is not None:
                     logger.info(f"EXIF data of [blue]{self.filename}[/blue] is updated.")
                 e.set_tags([self.fullname], tags=changes, params=["-P", "-overwrite_original"])
@@ -402,7 +428,11 @@ class MediaFile:
                 if self.fullname.samefile(new_file):
                     return
                 if filecmp.cmp(self.fullname, new_file, shallow=False):
-                    if confirmed or get_response(
+                    if logger is not None:
+                        logger.info(
+                            f"[green]DRYRUN[/green] Would rename {self.fullname} to an existing file {new_file}"
+                        )
+                    elif confirmed or get_response(
                         f"Rename {self.fullname} to an existing file {new_file}"
                     ):
                         os.remove(self.fullname)
@@ -414,7 +444,12 @@ class MediaFile:
                     return
                 return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
 
-            if confirmed or get_response(
+            if confirmed is False:
+                if logger is not None:
+                    logger.info(
+                        f"[green]DRYRUN[/green] Would rename [blue]{self.fullname}[/blue] to [green]{new_file.name}[/green]"
+                    )
+            elif confirmed or get_response(
                 f"Rename [blue]{self.fullname}[/blue] to [blue]{new_file.name}[/blue]"
             ):
                 os.rename(self.fullname, new_file)
@@ -453,7 +488,12 @@ class MediaFile:
 
         new_file = intended_path / nn
 
-        if confirmed or get_response(
+        if confirmed is False:
+            if logger is not None:
+                logger.info(
+                    f"[green]DRYRUN[/green] Would {operation.value.capitalize()} [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
+                )
+        elif confirmed or get_response(
             f"{operation.value.capitalize()} [blue]{self.fullname}[/blue] to [blue]{intended_path}[/blue]"
         ):
             os.makedirs(intended_path, exist_ok=True)
@@ -513,18 +553,22 @@ class MediaFile:
         confirmed: bool = False,
         logger: Logger | None = None,
     ) -> None:
-        if not confirmed and not get_response(
+        if confirmed is False:
+            if logger is not None:
+                logger.info(
+                    f"[green]DRYRUN[/green] Would add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"
+                )
+        elif confirmed or get_response(
             f"""Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"""
         ):
-            return
-        if overwrite:
-            manifest.set_tags(self.fullname, tags)
-        else:
-            manifest.add_tags(self.fullname, tags)
-        if logger is not None:
-            logger.info(
-                f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.fullname}[/blue]"""
-            )
+            if overwrite:
+                manifest.set_tags(self.fullname, tags)
+            else:
+                manifest.add_tags(self.fullname, tags)
+            if logger is not None:
+                logger.info(
+                    f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.fullname}[/blue]"""
+                )
 
     def remove_tags(
         self: "MediaFile",
@@ -532,10 +576,14 @@ class MediaFile:
         confirmed: bool = False,
         logger: Logger | None = None,
     ) -> None:
-        if not confirmed and not get_response(
+        if confirmed is False:
+            if logger is not None:
+                logger.info(
+                    f"[green]DRYRUN[/green] Would remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"
+                )
+        elif confirmed or get_response(
             f"""Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"""
         ):
-            return
-        manifest.remove_tags(self.fullname, tags)
-        if logger is not None:
-            logger.info(f"Removed tags {tags} from [blue]{self.filename}[/blue]")
+            manifest.remove_tags(self.fullname, tags)
+            if logger is not None:
+                logger.info(f"Removed tags {tags} from [blue]{self.filename}[/blue]")

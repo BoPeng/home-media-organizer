@@ -3,6 +3,7 @@ Table of Contents:
 - [General Usage](#general-usage)
   - [Getting Help](#getting-help)
   - [Configuration file](#configuration-file)
+  - [Batch, Dryrun, and Interactive Mode](#batch-dryrun-and-interactive-mode)
 - [Explore Your Home Media Library](#explore-your-home-media-library)
   - [`hmo-list`: List media files](#hmo-list-list-media-files)
   - [`hmo show-tags`: Show tags associated with media files](#hmo-show-tags-show-tags-associated-with-media-files)
@@ -149,6 +150,17 @@ file_types = [
 The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands.
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
+
+### Batch, Dryrun, and Interactive Mode
+
+`hmo` demands user-confirmation for any operation it performs on media files. By default, a prompt will be displayed for you to select `Yes/No`, although entering `ENTER` will assume `Yes`.
+
+Two options `--yes/-y` and `--no/-n` are provided to override this behavior.
+
+- `--yes/-y` runs the script in batch mode. If assumes `--yes` for all prompts and performs the operations without extra confirmation.
+- `--no/-n` runs the script in dryrun mode. If assumes `--no` for all prompts and print out a message indicating what would have been done.
+
+By default, all operations that require interactive user confirmations will be run in a single process and process sequentially. However, the command will be run in **multiprocessing mode** (with number of jobs controllable by option `--jobs`) when `--yes` or `--no` is specified.
 
 ## Explore Your Home Media Library
 

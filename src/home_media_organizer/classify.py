@@ -36,7 +36,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     processed_cnt = 0
 
     # download the model if needed
-    if args.confirmed:
+    if args.confirmed is not None:
         with Pool(args.jobs or None) as pool:
             for item, tags in tqdm(
                 pool.imap(

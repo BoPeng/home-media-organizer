@@ -49,7 +49,7 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
         metadata[k] = v
     tags = {x: metadata for x in args.tags}
 
-    if args.confirmed:
+    if args.confirmed is not None:
         with Pool(args.jobs or None) as pool:
             for item, match in tqdm(
                 pool.imap(

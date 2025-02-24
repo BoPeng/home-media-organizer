@@ -83,12 +83,20 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("-j", "--jobs", type=int, help="Number of jobs for multiprocessing.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument(
+    prompt_parser = parser.add_mutually_exclusive_group()
+    prompt_parser.add_argument(
         "-y",
         "--yes",
         action="store_true",
-        dest="confirmed",
+        dest="batch",
         help="Proceed with all actions without prompt.",
+    )
+    prompt_parser.add_argument(
+        "-n",
+        "--no",
+        action="store_true",
+        dest="dryrun",
+        help="Run in dryrun mode, similar to answering no for all prompts.",
     )
 
 
@@ -139,6 +147,13 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
             if getattr(args, k, None) is not None:
                 continue
             setattr(args, k, v)
+    #
+    if args.batch is True:
+        args.confirmed = True
+    elif args.dryrun is True:
+        args.confirmed = False
+    else:
+        args.confirmed = None
     return args
 
 
