@@ -556,7 +556,7 @@ class MediaFile:
         if confirmed is False:
             if logger is not None:
                 logger.info(
-                    f"[green]DRYRUN[/green] Would add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"
+                    f"""[green]DRYRUN[/green] Would add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"""
                 )
         elif confirmed or get_response(
             f"""Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"""
