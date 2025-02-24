@@ -386,7 +386,7 @@ hmo classify 2009 --model nudenet --threshold 0.9 --tags FEMALE_BREAST_COVERED B
 
 _home-media-organizer_ currently supports the following models and tags
 
-| model   | tag                        | comment        |
+| model   | tags                       | comment        |
 | ------- | -------------------------- | -------------- |
 | nudenet | `FEMALE_GENITALIA_COVERED` |                |
 |         | `FACE_FEMALE`              |                |
@@ -406,6 +406,7 @@ _home-media-organizer_ currently supports the following models and tags
 |         | `ANUS_COVERED`             |                |
 |         | `FEMALE_BREAST_COVERED`    |                |
 |         | `BUTTOCKS_COVERED`         |                |
+| face    | `face`                     |                |
 | age     | `baby`                     | age < 3        |
 |         | `toddler`                  | 3 <= age < 12  |
 |         | `teenager`                 | 12 <= age < 20 |
