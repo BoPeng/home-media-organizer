@@ -33,7 +33,7 @@ def get_cleanup_parser(subparsers: argparse._SubParsersAction) -> argparse.Argum
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "cleanup",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Remove unwanted files and empty directories.",
+        help="Remove unwanted files and empty directories",
     )
     parser.add_argument(
         "file-types",
