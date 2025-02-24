@@ -240,6 +240,44 @@ deepface_backends = (
 )
 
 
+class FaceClassifier(Classifier):
+    name = "face"
+    labels = ("Face",)
+    default_backend = "opencv"
+    allowed_backends = deepface_backends
+
+    def _classify(self, filename: Path) -> List[Dict[str, Any]]:
+        from deepface import DeepFace  # type: ignore
+
+        try:
+            return cast(
+                List[Dict[str, Any]],
+                DeepFace.extract_faces(
+                    img_path=str(filename), detector_backend=self.backend, enforce_detection=True
+                ),
+            )
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"Error classifying {filename}: {e}")
+            return []
+
+    def _filter_tags(self, res: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {
+            "Face": np_to_scalar(
+                {
+                    k: v
+                    for k, v in x.items()
+                    if k in ("facial_area", "left_eye", "right_eye", "confidence")
+                }
+            )
+            | {"model": self.name}
+            for x in res
+            if "face" in x
+            and (self.threshold is None or x["confidence"].item() > self.threshold)
+            and (self.tags is None or "Face" in self.tags)
+        }
+
+
 class AgeClassifier(Classifier):
     name = "age"
     labels = ("baby", "toddler", "teenager", "adult", "elderly")
@@ -389,6 +427,7 @@ def get_classifier_class(model_name: str) -> Type[Classifier]:
         GenderClassifier.name: GenderClassifier,
         RaceClassifier.name: RaceClassifier,
         EmotionClassifier.name: EmotionClassifier,
+        FaceClassifier.name: FaceClassifier,
     }[model_name.split(":")[0]]
 
 
