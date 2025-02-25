@@ -204,7 +204,7 @@ def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
         t = Worker(q, func)
         t.start()
 
-    for item in (pbar := tqdm(iter_files(args))):
+    for item in (pbar := tqdm(iter_files(args), disable=not args.progress)):
         pbar.set_description(f"Processing {item.name}")
         q.put(item)
     q.join()
