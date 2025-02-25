@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from logging import Logger
-from multiprocessing import Lock
 from pathlib import Path
 from typing import Any, Dict, Generator, List
 
@@ -143,47 +142,12 @@ class ManifestItem:
         return f"{self.filename}\t{self.hash_value}\t{' '.join(self.tags.keys())}"
 
 
-class ProcessSafeCache:
-    def __init__(self) -> None:
-        self._lock = Lock()
-        self._cache: Dict[Path, ManifestItem] = {}
-
-    def get(self, key: Path, default: ManifestItem | Any = None) -> ManifestItem | Any:
-        with self._lock:
-            return self._cache.get(key, default)
-
-    def set(self, key: Path, value: ManifestItem) -> None:
-        with self._lock:
-            self._cache[key] = value
-
-    def pop(self, key: Path, default: ManifestItem | Any = None) -> ManifestItem | None:
-        with self._lock:
-            return self._cache.pop(key, default)
-
-    def __getitem__(self, key: Path) -> ManifestItem:
-        with self._lock:
-            return self._cache[key]
-
-    def __setitem__(self, key: Path, value: ManifestItem) -> None:
-        with self._lock:
-            self._cache[key] = value
-
-    def __contains__(self, key: Path) -> bool:
-        with self._lock:
-            return key in self._cache
-
-    def __ior__(self, other: Dict[Path, ManifestItem]) -> "ProcessSafeCache":
-        with self._lock:
-            self._cache.update(other)
-            return self
-
-
 class Manifest:
     def __init__(
         self: "Manifest", filename: str | None = None, logger: Logger | None = None
     ) -> None:
         self.logger = logger
-        self.cache: ProcessSafeCache = ProcessSafeCache()
+        self.cache: Dict[Path, ManifestItem] = {}
         self.init_db(filename)
 
     def init_db(self: "Manifest", filename: str | None, logger: Logger | None = None) -> None:

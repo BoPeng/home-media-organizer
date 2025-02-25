@@ -84,6 +84,8 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
             msg += """Which file would you like to keep ("n" to keep all)?"""
             answer = Prompt.ask(msg, choices=choices, default=choices[-2])
             if answer == "n":
+                if logger is not None:
+                    logger.info("All files are kept.")
                 continue
             keep_idx = int(answer) - 1
             for idx, filename in enumerate(sorted_files):
