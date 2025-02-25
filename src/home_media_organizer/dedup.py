@@ -6,10 +6,11 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import Tuple
 
+from rich.prompt import Prompt
 from tqdm import tqdm  # type: ignore
 
 from .home_media_organizer import iter_files
-from .utils import clear_cache, get_file_hash, get_response
+from .utils import clear_cache, get_file_hash
 
 
 #
@@ -54,21 +55,44 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
         # keep the one with the deepest path name
         duplicated_cnt += len(files) - 1
         sorted_files = sorted(files, key=lambda x: len(str(x)))
-        for filename in sorted_files[:-1]:
-            if logger is not None:
-                logger.info(f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} ")
-            if args.confirmed is False:
+
+        if args.confirmed is not None:
+            for filename in sorted_files[:-1]:
                 if logger is not None:
-                    logger.info(f"[green]DRYRUN[/green] Would remove {filename}")
-            elif args.confirmed or get_response("Remove it?"):
+                    logger.info(
+                        f"[red]{filename}[/red] is a duplicated copy of {sorted_files[-1]} "
+                    )
+                if args.confirmed is False:
+                    if logger is not None:
+                        logger.info(f"[green]DRYRUN[/green] Would remove {filename}")
+                else:
+                    os.remove(filename)
+                    if logger is not None:
+                        logger.info(f"[red]{filename}[/red] is removed.")
+                    removed_cnt += 1
+        else:
+            # ask which file that user would like to keep
+            msg = f"\nThe following [red]{len(files)}[/red] files have the same content:\n"
+            choices = []
+            for idx, filename in enumerate(sorted_files):
+                if idx == len(sorted_files) - 1:
+                    msg += f"{idx + 1}:  [green]{filename}[/green]\n"
+                else:
+                    msg += f"{idx + 1}:  [red]{filename}[/red]\n"
+                choices.append(str(idx + 1))
+            choices.append("n")
+            msg += """Which file would you like to keep ("n" to keep all)?"""
+            answer = Prompt.ask(msg, choices=choices, default=choices[-2])
+            if answer == "n":
+                continue
+            keep_idx = int(answer) - 1
+            for idx, filename in enumerate(sorted_files):
+                if idx == keep_idx:
+                    continue
                 os.remove(filename)
                 if logger is not None:
                     logger.info(f"[red]{filename}[/red] is removed.")
                 removed_cnt += 1
-    if logger is not None:
-        logger.info(
-            f"[blue]{removed_cnt}[/blue] out of [blue]{duplicated_cnt}[/blue] duplicated files are removed."
-        )
 
 
 def get_dedup_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:

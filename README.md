@@ -35,9 +35,10 @@ Table of Contents:
   - [List and count all photos](#list-and-count-all-photos)
   - [Rename files according to their date and time](#rename-files-according-to-their-date-and-time)
   - [Organize files](#organize-files)
-  - [Do you have a happy family?](#do-you-have-a-happy-family)
-  - [Find all your photos](#find-all-your-photos)
+  - [Remove duplicated files](#remove-duplicated-files)
 - [Advanced Topics](#advanced-topics)
+  - [Do you have a happy family?](#do-you-have-a-happy-family)
+  - [Find all photos with you](#find-all-photos-with-you)
   - [Compare against a separate collection of files](#compare-against-a-separate-collection-of-files)
   - [Modifying `File:FileModifyDate`](#modifying-filefilemodifydate)
 - [TODO](#todo)
@@ -157,6 +158,24 @@ to move files to paths such as `/path/to/library/2020/2020-12-hawaii/`.
 
 The album name is appended to `dir-pattern` with a dash ( `album-sep="-"`, default). You can set `album-sep="/"` if you would like albums to be organized as `/path/to/library/2020/2020-12/hawaii/`.
 
+### Remove duplicated files
+
+```sh
+hmo dedup 2024
+```
+
+will find duplicated files under directory `2024` and ask you which copy you would like to keep. If you run in batch mode
+
+```sh
+hmo dedup 2024 --yes
+```
+
+The command will keep the file with the longest paths, under the assumption that the file with longer path contains more information (suffix, album etc.).
+
+Note that `hmo dedup` checks file contents so files with different filenames but the same contents are considered as duplicates.
+
+## Advanced Topics
+
 ### Do you have a happy family?
 
 To find out the emotions of people in the photos, you first need to annotate all pictures with appropriate tags, with command
@@ -195,7 +214,7 @@ hmo classify 2025/2025-01/20250117_123847.jpg --model emotion -v
 
 This step is actually recommended because some models may require additional downloads and dependencies (e.g. `emotion:deepface:dlib` needs a separate installation of `dlib`), so it is best to test a model before apply it to a large number of files.
 
-### Find all your photos
+### Find all photos with you
 
 Your library contains tens of thousands of photos and it is challenging to find ones with you, your wife, or your children. Face recognition can be used to address this issue by tagging photos with names.
 
@@ -228,8 +247,6 @@ to remove the tags and try different reference photos and threshold. Otherwise, 
 ```sh
 hmo list 2020 --with-tags 'John AND happy'
 ```
-
-## Advanced Topics
 
 ### Compare against a separate collection of files
 
