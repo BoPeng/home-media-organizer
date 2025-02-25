@@ -1,9 +1,12 @@
+# Home Media Organizer User's Guide
+
 Table of Contents:
 
 - [General Usage](#general-usage)
   - [Getting Help](#getting-help)
   - [Configuration file](#configuration-file)
   - [Batch, Dryrun, and Interactive Mode](#batch-dryrun-and-interactive-mode)
+  - [Multi-processing, debug output, and progress bar](#multi-processing-debug-output-and-progress-bar)
 - [Explore Your Home Media Library](#explore-your-home-media-library)
   - [`hmo-list`: List media files](#hmo-list-list-media-files)
   - [`hmo show-tags`: Show tags associated with media files](#hmo-show-tags-show-tags-associated-with-media-files)
