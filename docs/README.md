@@ -175,31 +175,62 @@ For more detailed information on how `hmo` works, you can enable debug output wi
 
 ### `hmo-list`: List media files
 
-Assuming `2000` is the folder that you keep all your old photos and videos from year 2000,
+The `hmo list` command lists all files in your library, subject to all the filtering options.
+These options are acceptable by all other commands.
+
+#### Target files and directories
+
+`hmo list` and all other `hmo` commands accept one or more filenames or directories, which defines the "target" of the command.
+
+Assuming `2020` and `2021` are the folders that you keep all your old photos and videos from year `2020` and `2021`, command
 
 ```sh
-# list all supported media files
-hmo list 2000
+hmo list 2020 2021
+```
 
-# list multiple directories
-hmo list 200? --search-paths /path/to/storage
+lists all media files under these directories, **ignoring unsupported media file types**. You can also specify a list of files like
+
+```sh
+hmo list incoming/IMG*.jpg
+```
+
+If the files and directories are not under the current directory, you can specify them using their absolute paths, or use option `--search-path` to specify their parent directories.
+
+```
+hmo list 2022 --search-paths /path/to/storage
+```
+
+In practice, we often add the root directory of home media library to option `--search-paths` and add the option to configuration files.
 
 # list only certain file types
-hmo list 2000 --file-types '*.mp4'
+
+```
+hmo list 2020 --file-types '*.mp4'
+```
 
 # list only files with certain exif value.
+
 # This tends to be slow since it will need to scan the EXIF data of all files
+
 hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
+
 # with any key
+
 hmo list 2009 --with-exif QuickTime:AudioFormat
+
 # without any Date related EXIF meta data (external File: date is not considered)
-hmo list 2009 --without-exif '*Date'
+
+hmo list 2009 --without-exif '\*Date'
 
 # all files with tag VACATION
+
 hmo list 2009 --with-tags VACATION
+
 # all files with some tag, but not those with tag VACATION
+
 hmo list 2009 --with-tags --without-tags VACATION
-```
+
+````
 
 Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
 
@@ -207,7 +238,7 @@ Note that `--search-paths` is an option used by most `hmo` commands, which speci
 
 ```sh
 hmo show-tags 2009
-```
+````
 
 shows all tags for files under folder 2009. This command, and all following tag and classification related commands, requires a parameter `--manifest` that points to a manifest database. This parameter is usually set in the configuration file as
 
