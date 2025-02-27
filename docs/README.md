@@ -175,8 +175,7 @@ For more detailed information on how `hmo` works, you can enable debug output wi
 
 ### `hmo-list`: List media files
 
-The `hmo list` command lists all files in your library, subject to all the filtering options.
-These options are acceptable by all other commands.
+The `hmo list` command command scans the specified directories or files and displays all media files it finds. This is useful for quickly seeing what media files are available and verifying which files will be processed by other commands.
 
 #### Target files and directories
 
@@ -202,35 +201,49 @@ hmo list 2022 --search-paths /path/to/storage
 
 In practice, we often add the root directory of home media library to option `--search-paths` and add the option to configuration files.
 
-# list only certain file types
+#### list only certain file types
 
-```
+You can list files that match a certain pattern, such as `*.mp5`, as defined in Python's [fnmatch](https://docs.python.org/3/library/fnmatch.html) module.
+
+```sh
 hmo list 2020 --file-types '*.mp4'
 ```
 
-# list only files with certain exif value.
+The patterns need to be quoted to prevent your shell from expanding them.
 
-# This tends to be slow since it will need to scan the EXIF data of all files
+#### List only files with certain tags
+
+tags
+
+#### list only files with certain EXIF value.
+
+This tends to be slow since it will need to scan the EXIF data of all files
 
 hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
 
 # with any key
 
+```
 hmo list 2009 --with-exif QuickTime:AudioFormat
+```
 
 # without any Date related EXIF meta data (external File: date is not considered)
 
+```
 hmo list 2009 --without-exif '\*Date'
+```
 
 # all files with tag VACATION
 
+```
 hmo list 2009 --with-tags VACATION
+```
 
-# all files with some tag, but not those with tag VACATION
+all files with some tag, but not those with tag VACATION
 
+```
 hmo list 2009 --with-tags --without-tags VACATION
-
-````
+```
 
 Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
 
@@ -238,7 +251,7 @@ Note that `--search-paths` is an option used by most `hmo` commands, which speci
 
 ```sh
 hmo show-tags 2009
-````
+```
 
 shows all tags for files under folder 2009. This command, and all following tag and classification related commands, requires a parameter `--manifest` that points to a manifest database. This parameter is usually set in the configuration file as
 
@@ -346,6 +359,13 @@ It is not absolutely necessary, but I prefer to keep files with standardized nam
 The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file according to specified format.
 For example, `--format %Y%m%d_%H%M%S` will format files to for example `20010422_041817.mpg`. An option `--suffix` is provided if you would like to add an suffix to the filename.
 
+### Options
+
+| Option            | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `--format FORMAT` | Format of the filename. This option is required unless set in the configuration file. |
+| `--suffix SUFFIX` | A string that will be appended to the filename (before file extension).               |
+
 For example
 
 ```sh
@@ -362,7 +382,10 @@ hmo rename 201010* --format %Y%m%d_%H%M%S` --suffix=-vacation
 
 will generate files like `20101005_129493-vacation.jpg`.
 
-Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
+NOTE:
+
+- Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
+- If date information is unavailable, `hmo rename` will ask if you would like to use file motify date.
 
 ### `hmo organize`: Organize files into appropriate folder
 
