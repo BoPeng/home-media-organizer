@@ -1,9 +1,12 @@
+# Home Media Organizer User's Guide
+
 Table of Contents:
 
 - [General Usage](#general-usage)
   - [Getting Help](#getting-help)
   - [Configuration file](#configuration-file)
   - [Batch, Dryrun, and Interactive Mode](#batch-dryrun-and-interactive-mode)
+  - [Multi-processing, debug output, and progress bar](#multi-processing-debug-output-and-progress-bar)
 - [Explore Your Home Media Library](#explore-your-home-media-library)
   - [`hmo-list`: List media files](#hmo-list-list-media-files)
   - [`hmo show-tags`: Show tags associated with media files](#hmo-show-tags-show-tags-associated-with-media-files)
@@ -123,7 +126,7 @@ HMO recognizes
 - `./.home-media-organizer.toml`
 - And any configuration file specified with option `--config`
 
-The format of the configuration is [TOML](https://toml.io/en/), and a typical configuration file looks like:
+The configurations files should be in [TOML](https://toml.io/en/) format, and a typical configuration file looks like:
 
 ```toml
 [default]
@@ -147,20 +150,26 @@ file_types = [
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands.
+The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which corresponds to the common options for all commands.
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
 
 ### Batch, Dryrun, and Interactive Mode
 
-`hmo` demands user-confirmation for any operation it performs on media files. By default, a prompt will be displayed for you to select `Yes/No`, although entering `ENTER` will assume `Yes`.
+`hmo` requires user confirmation for any operation that modifies media files. Most prompts will ask you to select `Yes` or `No`, with pressing `ENTER` defaulting to `Yes`.
 
-Two options `--yes/-y` and `--no/-n` are provided to override this behavior.
+To override this behavior, you can use the following options:
 
-- `--yes/-y` runs the script in batch mode. If assumes `--yes` for all prompts and performs the operations without extra confirmation.
-- `--no/-n` runs the script in dryrun mode. If assumes `--no` for all prompts and print out a message indicating what would have been done.
+- `--yes/-y`: Runs the script in batch mode, automatically assuming `Yes` for all prompts and performing the operations without additional confirmation.
+- `--no/-n`: Runs the script in dry-run mode, automatically assuming `No` for all prompts and displaying a message indicating what actions would have been taken.
 
-By default, all operations that require interactive user confirmations will be run in a single process and process sequentially. However, the command will be run in **multiprocessing mode** (with number of jobs controllable by option `--jobs`) when `--yes` or `--no` is specified.
+### Multi-processing, debug output, and progress bar
+
+All operations that require interactive user confirmation are run in a single process and executed sequentially. However, when the `--yes` or `--no` option is specified, the command will run in multiprocessing mode. The number of jobs is automatically determined by the number of CPU cores in the running environment, but you can control it with the `--jobs` or `-j` option.
+
+Scanning the entire library can be time-consuming. To enable a progress bar, use the `-p` (or `--progress`) option.
+
+For more detailed information on how `hmo` works, you can enable debug output with the `-v` (or `--verbose`) option. This is particularly helpful for understanding the output of AI models.
 
 ## Explore Your Home Media Library
 

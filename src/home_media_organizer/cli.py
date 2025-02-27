@@ -82,6 +82,7 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
             Default to ~/.home-media-organizer/manifest.db.""",
     )
     parser.add_argument("-j", "--jobs", type=int, help="Number of jobs for multiprocessing.")
+    parser.add_argument("-p", "--progress", action="store_true", help="Show progress.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     prompt_parser = parser.add_mutually_exclusive_group()
     prompt_parser.add_argument(
