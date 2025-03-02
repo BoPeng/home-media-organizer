@@ -213,39 +213,61 @@ The patterns need to be quoted to prevent your shell from expanding them.
 
 #### List only files with certain tags
 
-tags
+Tags are words that are associated with media files. They are created with commands `hmo set-tags` or `hmo classify`, and ar stored in a separate data base. To show media files with certain tags, use option `--with-tags` such as
+
+```sh
+hmo list 2009 --with-tags Jenny Vacation
+```
+
+This command shows all pictures with either tag `Jenny` or `Vacation`. Or you would like see media files with both tags, use an `AND` in the query
+
+```sh
+hmo list 2009 --with-tags 'Jenny AND Vacation'
+```
+
+If no value for `--with-tags` is specified, the command will search for media files with any tag,
+
+```sh
+hmo list 2009 --with-tags
+```
+
+and you can combine this option with `--without-tags` to select media files with tags other than the specified ones
+
+```sh
+hmo list 2009 --with-tags --without-tags Jenny
+```
 
 #### list only files with certain EXIF value.
 
-This tends to be slow since it will need to scan the EXIF data of all files
+Most media file formats support EXIF metadata, which you can use to filter media files. For example:
 
+```sh
 hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
-
-# with any key
-
 ```
+
+This command selects only media files with mp4a for QuickTime:AudioFormat. To select all media files with this tag, regardless of its value, use:
+
+```sh
 hmo list 2009 --with-exif QuickTime:AudioFormat
 ```
 
-# without any Date related EXIF meta data (external File: date is not considered)
+To select any file with any QuickTime metadata, use:
 
+```sh
+hmo list 2009 --with-exif 'QuickTime:*'
 ```
+
+Note that retrieving EXIF information from media files can be slow. To improve performance, you can limit the search by file types:
+
+```sh
+hmo list 2009 --with-exif QuickTime:AudioFormat --file-types '*.mp4' '*.mp3'
+```
+
+#### without any Date related EXIF meta data (external File: date is not considered)
+
+```sh
 hmo list 2009 --without-exif '\*Date'
 ```
-
-# all files with tag VACATION
-
-```
-hmo list 2009 --with-tags VACATION
-```
-
-all files with some tag, but not those with tag VACATION
-
-```
-hmo list 2009 --with-tags --without-tags VACATION
-```
-
-Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
 
 ### `hmo show-tags`: Show tags associated with media files
 
@@ -253,16 +275,7 @@ Note that `--search-paths` is an option used by most `hmo` commands, which speci
 hmo show-tags 2009
 ```
 
-shows all tags for files under folder 2009. This command, and all following tag and classification related commands, requires a parameter `--manifest` that points to a manifest database. This parameter is usually set in the configuration file as
-
-```toml
-[default]
-manifest = '/path/to/library/manifest.db'
-```
-
-so we will ignore this option from the commands.
-
-Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
+shows all tags for files under folder 2009. Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
 
 ```sh
 hmo show-tags 2009 --without-tags FACE_FEMALE FACE_MALE

@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -164,17 +165,24 @@ class Manifest:
 
     @contextmanager
     def _get_connection(self: "Manifest") -> Generator[sqlite3.Connection, None, None]:
-        conn = sqlite3.connect(self.database_path)
-        # Enable JSON support
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")  # Set busy timeout to 30 seconds
-        # Register JSON functions for better JSON handling
-        sqlite3.register_adapter(dict, json.dumps)
-        sqlite3.register_converter("JSON", json.loads)
+        conn = None
         try:
+            conn = sqlite3.connect(self.database_path, detect_types=sqlite3.PARSE_DECLTYPES)
+            # Enable JSON support
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=30000")  # Set busy timeout to 30 seconds
+            # Register JSON functions for better JSON handling
+            sqlite3.register_adapter(dict, json.dumps)
+            sqlite3.register_converter("JSON", json.loads)
+            conn = sqlite3.connect(self.database_path)
             yield conn
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"SQLite error: {self.database_path}: {e}")
+            sys.exit(1)
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
     def _init_db(self: "Manifest") -> None:
         with self._get_connection() as conn:
