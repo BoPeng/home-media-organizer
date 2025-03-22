@@ -174,7 +174,10 @@ class MediaFile:
         self: "MediaFile", confirmed: bool | None = None, logger: Logger | None = None
     ) -> str:
         if self.date is None:
-            funcs = date_func[self.ext.lower()]
+            try:
+                funcs = date_func[self.ext.lower()]
+            except Exception:
+                funcs = ()
             for func in funcs:
                 try:
                     self.date = func(self.fullname)
@@ -533,6 +536,10 @@ class MediaFile:
             nn = self.filename
 
         new_file = intended_path / nn
+        if new_file == self.fullname:
+            if logger is not None:
+                logger.info(f"File [blue]{self.filename}[/blue] unsupported or already organized.")
+            return
 
         if confirmed is False:
             if logger is not None:

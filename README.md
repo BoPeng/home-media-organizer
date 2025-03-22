@@ -28,6 +28,14 @@ A versatile tool to fix, organize, and maintain your home media library.
 - **File Validation**: Detect corrupted media files
 - **Flexible Configuration**: Customizable organization patterns and rules
 
+At its simplest, the command
+
+```sh
+hmo organize mypictures -y
+```
+
+moves media files from the mypictures directory into folders like 2025-03, based on predefined naming rules, a specified target location, and timestamp of media files.
+
 Table of Contents:
 
 - [Quick Start](#quick-start)

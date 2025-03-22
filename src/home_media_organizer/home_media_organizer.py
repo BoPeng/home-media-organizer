@@ -12,7 +12,6 @@ import rich
 from exiftool import ExifToolHelper  # type: ignore
 from tqdm import tqdm  # type: ignore
 
-from .media_file import date_func
 from .utils import manifest
 
 
@@ -25,10 +24,6 @@ def iter_files(
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             if logger is not None:
                 logger.debug(f"Ignoring {filename} due to failed --file-types matching.")
-            return False
-        if filename.suffix.lower() not in date_func:
-            if logger is not None:
-                logger.debug(f"Ignoring {filename} due to unsupported filetype")
             return False
         return True
 

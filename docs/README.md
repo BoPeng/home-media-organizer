@@ -464,19 +464,25 @@ Finally, command
 hmo cleanup -y
 ```
 
-will remove files that are commonly copied from cameras, such as `*.LRV` and `*.THM` files from GoPro cameras. It will also remove any empty directories. You can control the file types to be removed by adding options such as `*.CR2` (single quote is needed to avoid shell expansion), namely
+will remove files all selected files. It is used to remove camera artifact files such as `*.LRV` and `*.THM` files from GoPro cameras.
 
 ```sh
-hmo cleanup '*.CR2'
+hmo cleanup folder --file-types '*.CR2'
 ```
 
-To check the file types that will be removed, run
+but it is better to specify this option through the configuration file.
 
-```
-hmo cleanup -h
+Because of the danger to remove files that should not be deleted, it is highly recommend that you run
+
+```sh
+hmo cleanup folder --file-types '*.CR2' -n
 ```
 
-If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
+see the list of files that will be removed, before running
+
+```sh
+hmo cleanup folder --file-types '*.CR2' -y
+```
 
 ## Using Tags
 

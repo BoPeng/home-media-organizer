@@ -10,7 +10,7 @@ from .home_media_organizer import iter_files
 def list_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     """List all or selected media files."""
     cnt = 0
-    for item in iter_files(args):
+    for item in iter_files(args, logger=logger):
         print(item)
         cnt += 1
     if logger is not None:
