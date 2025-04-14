@@ -475,10 +475,11 @@ class MediaFile:
                 if self.fullname.samefile(new_file):
                     return
                 if filecmp.cmp(self.fullname, new_file, shallow=False):
-                    if logger is not None:
-                        logger.info(
-                            f"[green]DRYRUN[/green] Would rename {self.fullname} to an existing file {new_file}"
-                        )
+                    if confirmed is False:
+                        if logger is not None:
+                            logger.info(
+                                f"[green]DRYRUN[/green] Would rename {self.fullname} to an existing file {new_file}"
+                            )
                     elif confirmed or get_response(
                         f"Rename {self.fullname} to an existing file {new_file}"
                     ):
@@ -490,7 +491,6 @@ class MediaFile:
                             )
                     return
                 return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
-
             if confirmed is False:
                 if logger is not None:
                     logger.info(

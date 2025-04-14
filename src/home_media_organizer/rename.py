@@ -28,7 +28,7 @@ def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> Non
         process_with_queue(
             args,
             lambda x, filename_format=args.format, suffix=args.suffix or "", logger=logger: rename_file(
-                x, filename_format, suffix, True, logger
+                x, filename_format, suffix, args.confirmed, logger
             ),
         )
     else:
