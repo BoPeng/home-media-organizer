@@ -14,6 +14,7 @@ from .config import Config
 from .dedup import get_dedup_parser
 from .list import get_list_parser
 from .organize import get_organize_parser
+from .remove import get_remove_parser
 from .remove_tags import get_remove_tags_parser
 from .rename import get_rename_parser
 from .set_exif import get_set_exif_parser
@@ -34,6 +35,12 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         "items",
         nargs="+",
         help="Directories or files to be processed",
+    )
+    parser.add_argument(
+        "-s",
+        "--search",
+        action="store_true",
+        help="Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.",
     )
     parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
@@ -119,6 +126,7 @@ def parse_args(arg_list: Optional[List[str]]) -> argparse.Namespace:
         get_dedup_parser(subparsers),
         get_list_parser(subparsers),
         get_organize_parser(subparsers),
+        get_remove_parser(subparsers),
         get_remove_tags_parser(subparsers),
         get_rename_parser(subparsers),
         get_set_exif_parser(subparsers),

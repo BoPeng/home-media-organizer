@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, List
 
 from diskcache import Cache  # type: ignore
+from filelock import FileLock
 from pyparsing import (
     CharsNotIn,
     Keyword,
@@ -29,11 +30,17 @@ class OrganizeOperation(Enum):
     COPY = "copy"
 
 
+class RemoveOperation(Enum):
+    REMOVE = "remove"
+    RECYCLE = "recycle"
+
+
 hmo_home = Path.home() / ".ai-marketplace-monitor"
 hmo_home.mkdir(parents=True, exist_ok=True)
 cache_dir = hmo_home / "cache"
 cache_dir.mkdir(parents=True, exist_ok=True)
 cache = Cache(cache_dir, verbose=0)
+recycle_dir = hmo_home / "recycled"
 
 
 def clear_cache(tag: str) -> None:
@@ -150,6 +157,15 @@ class Manifest:
         self.logger = logger
         self.cache: Dict[Path, ManifestItem] = {}
         self.init_db(filename)
+        self.database_path = None
+        self._lock = None
+
+    @property
+    def lock(self) -> FileLock:
+        assert self.database_path is not None
+        if self._lock is None:
+            self._lock = FileLock(self.database_path + ".lock")
+        return self._lock
 
     def init_db(self: "Manifest", filename: str | None, logger: Logger | None = None) -> None:
         self.database_path = str(hmo_home / "manifest.db") if filename is None else filename
