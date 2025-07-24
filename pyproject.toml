@@ -124,6 +124,7 @@ ignore = [
   "S607",   # subprocess.run with relative path
   "E501",   # line too long
   "S112",   # logging try/except/continue
+  "S608",   # SQL injection
 ]
 select = [
   "E",

@@ -43,6 +43,11 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         help="Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.",
     )
     parser.add_argument(
+        "--update-db",
+        action="store_true",
+        help="Force update of file database by checking directory timestamps. Use with --search for thorough database refresh.",
+    )
+    parser.add_argument(
         "--file-types", nargs="*", help="File types to process, such as *.jpg, *.mp4, or 'video*'."
     )
     parser.add_argument(

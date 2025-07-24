@@ -689,7 +689,7 @@ class MediaFile:
             elif confirmed or get_response(
                 f"""Move [blue]{self.filename}[/blue] to recycle bin"""
             ):
-                os.move(self.fullname, recycle_bin)
+                shutil.move(self.fullname, recycle_bin)
                 with manifest.lock:
                     manifest.remove(self.fullname)
                 if logger is not None:

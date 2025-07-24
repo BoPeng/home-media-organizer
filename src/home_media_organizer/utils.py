@@ -35,12 +35,14 @@ class RemoveOperation(Enum):
     RECYCLE = "recycle"
 
 
-hmo_home = Path.home() / ".ai-marketplace-monitor"
+hmo_home = Path.home() / ".home-media-organizer"
 hmo_home.mkdir(parents=True, exist_ok=True)
 cache_dir = hmo_home / "cache"
 cache_dir.mkdir(parents=True, exist_ok=True)
 cache = Cache(cache_dir, verbose=0)
 recycle_dir = hmo_home / "recycled"
+recycle_dir.mkdir(parents=True, exist_ok=True)
+files_db = hmo_home / "files.db"
 
 
 def clear_cache(tag: str) -> None:
