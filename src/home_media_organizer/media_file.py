@@ -669,14 +669,14 @@ class MediaFile:
             if confirmed is False:
                 if logger is not None:
                     logger.info(
-                        f"""[green]DRYRUN[/green] Would permanently remove [blue]{self.filename}[/blue]"""
+                        f"""[green]DRYRUN[/green] Would permanently remove [blue]{self.fullname}[/blue]"""
                     )
-            elif confirmed or get_response(f"""Permanently remove [blue]{self.filename}[/blue]"""):
+            elif confirmed or get_response(f"""Permanently remove [blue]{self.fullname}[/blue]"""):
                 os.remove(self.fullname)
                 with manifest.lock:
                     manifest.remove(self.fullname)
                 if logger is not None:
-                    logger.info(f"Permanently removed [blue]{self.filename}[/blue]")
+                    logger.info(f"Permanently removed [blue]{self.fullname}[/blue]")
         else:
             # move file to recycle bin
             if recycle_bin is None:
@@ -684,13 +684,13 @@ class MediaFile:
             if confirmed is False:
                 if logger is not None:
                     logger.info(
-                        f"""[green]DRYRUN[/green] Would be moved [blue]{self.filename}[/blue] to recycle bin"""
+                        f"""[green]DRYRUN[/green] Would be moved [blue]{self.fullname}[/blue] to recycle bin"""
                     )
             elif confirmed or get_response(
-                f"""Move [blue]{self.filename}[/blue] to recycle bin"""
+                f"""Move [blue]{self.fullname}[/blue] to recycle bin"""
             ):
                 shutil.move(self.fullname, recycle_bin)
                 with manifest.lock:
                     manifest.remove(self.fullname)
                 if logger is not None:
-                    logger.info(f"Moved [blue]{self.filename}[/blue] to recycle bin")
+                    logger.info(f"Moved [blue]{self.fullname}[/blue] to recycle bin")

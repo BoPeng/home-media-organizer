@@ -40,11 +40,13 @@ def add_common_arguments(subparser: argparse.ArgumentParser) -> None:
         "-s",
         "--search",
         action="store_true",
+        default=None,
         help="Search paths for items to be processed if relative file or directory names are specified. The current directory will always be searched first.",
     )
     parser.add_argument(
         "--update-db",
         action="store_true",
+        default=None,
         help="Force update of file database by checking directory timestamps. Use with --search for thorough database refresh.",
     )
     parser.add_argument(
