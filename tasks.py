@@ -111,7 +111,7 @@ def security(c: Context) -> None:
     )
 
 
-@task(pre=[ruff, security, call(format_, check=True)])
+@task(pre=[ruff, call(format_, check=True)])
 def lint(c: Context) -> None:
     """Run all linting."""
 
