@@ -19,6 +19,8 @@ A versatile tool to fix, organize, and maintain your home media library.
 
 - **Smart Organization**: Automatically organize photos and videos by date from EXIF data
 - **Duplicate Detection**: Find and remove duplicate media files
+- **Efficient File Search**: Database-backed pattern matching for fast file discovery across large collections
+- **Safe File Removal**: Remove files with recycle bin protection and permanent deletion options
 - **Tag Management**: Add, remove, and search media files by custom tags
 - **AI-Powered Classification**:
   - Face detection and recognition, tagging photos with names
@@ -27,6 +29,14 @@ A versatile tool to fix, organize, and maintain your home media library.
 - **EXIF Management**: View, set, and modify EXIF metadata
 - **File Validation**: Detect corrupted media files
 - **Flexible Configuration**: Customizable organization patterns and rules
+
+At its simplest, the command
+
+```sh
+hmo organize mypictures -y
+```
+
+moves media files from the mypictures directory into folders like 2025-03, based on predefined naming rules, a specified target location, and timestamp of media files.
 
 Table of Contents:
 
@@ -101,6 +111,31 @@ hmo -h
 
 For details usages of each command, please visit [Home Media Organizer Documentation](docs/README.md).
 
+## Common Options
+
+**Home Media Organizer** provides several common options that work across all commands:
+
+### File Search Options
+
+- **`--search` / `-s`**: Enable database-based file pattern matching. When searching for files by pattern (e.g., `*.jpg`, `IMG_*.png`), this option allows efficient searching across large directory structures using a local database.
+
+- **`--update-db`**: Force database refresh by checking directory timestamps. Use this when you've added new files and want to ensure the database is up-to-date before searching.
+
+- **`--search-paths`**: Specify additional directories to search when files aren't found in the current directory.
+
+### Examples:
+
+```sh
+# Fast search using cached database
+hmo list "IMG_*.jpg" --search
+
+# Search with database refresh (slower but thorough)
+hmo list "IMG_*.jpg" --search --update-db
+
+# Search in specific directories
+hmo rename "vacation*.jpg" --search --search-paths /Photos/2024 /Photos/2023
+```
+
 ## Basic Usages
 
 ### List and count all photos
@@ -173,6 +208,33 @@ hmo dedup 2024 --yes
 The command will keep the file with the longest paths, under the assumption that the file with longer path contains more information (suffix, album etc.).
 
 Note that `hmo dedup` checks file contents so files with different filenames but the same contents are considered as duplicates.
+
+### Remove files
+
+```sh
+hmo remove unwanted_files/
+```
+
+will remove files from the specified directory. The command supports two removal modes:
+
+- **Recycle mode (default)**: Moves files to a recycle bin (`~/.home-media-organizer/recycled/`) for safety
+- **Permanent removal**: Permanently deletes files (use with `--operation remove`)
+
+```sh
+# Move files to recycle bin (safe, default)
+hmo remove old_photos/ --yes
+
+# Permanently delete files (dangerous!)
+hmo remove old_photos/ --operation remove --yes
+
+# Remove files matching a pattern with database search
+hmo remove "IMG_*.jpg" --search --file-types "*.jpg"
+```
+
+**Safety Features:**
+- Interactive confirmation for each file (unless `--yes` is used)
+- Recycle bin mode allows recovery of accidentally removed files
+- Integration with file database and manifest system for tracking
 
 ## Advanced Topics
 

@@ -1,9 +1,12 @@
+# Home Media Organizer User's Guide
+
 Table of Contents:
 
 - [General Usage](#general-usage)
   - [Getting Help](#getting-help)
   - [Configuration file](#configuration-file)
   - [Batch, Dryrun, and Interactive Mode](#batch-dryrun-and-interactive-mode)
+  - [Multi-processing, debug output, and progress bar](#multi-processing-debug-output-and-progress-bar)
 - [Explore Your Home Media Library](#explore-your-home-media-library)
   - [`hmo-list`: List media files](#hmo-list-list-media-files)
   - [`hmo show-tags`: Show tags associated with media files](#hmo-show-tags-show-tags-associated-with-media-files)
@@ -123,7 +126,7 @@ HMO recognizes
 - `./.home-media-organizer.toml`
 - And any configuration file specified with option `--config`
 
-The format of the configuration is [TOML](https://toml.io/en/), and a typical configuration file looks like:
+The configurations files should be in [TOML](https://toml.io/en/) format, and a typical configuration file looks like:
 
 ```toml
 [default]
@@ -147,52 +150,124 @@ file_types = [
   ]
 ```
 
-The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which specifies parameters for all commands.
+The entries and values in this configuration file correspond to subcommand and options of `hmo`, except for `default`, which corresponds to the common options for all commands.
 
 **NOTE**: If you have multiple configuration files, their values will be merged.
 
 ### Batch, Dryrun, and Interactive Mode
 
-`hmo` demands user-confirmation for any operation it performs on media files. By default, a prompt will be displayed for you to select `Yes/No`, although entering `ENTER` will assume `Yes`.
+`hmo` requires user confirmation for any operation that modifies media files. Most prompts will ask you to select `Yes` or `No`, with pressing `ENTER` defaulting to `Yes`.
 
-Two options `--yes/-y` and `--no/-n` are provided to override this behavior.
+To override this behavior, you can use the following options:
 
-- `--yes/-y` runs the script in batch mode. If assumes `--yes` for all prompts and performs the operations without extra confirmation.
-- `--no/-n` runs the script in dryrun mode. If assumes `--no` for all prompts and print out a message indicating what would have been done.
+- `--yes/-y`: Runs the script in batch mode, automatically assuming `Yes` for all prompts and performing the operations without additional confirmation.
+- `--no/-n`: Runs the script in dry-run mode, automatically assuming `No` for all prompts and displaying a message indicating what actions would have been taken.
 
-By default, all operations that require interactive user confirmations will be run in a single process and process sequentially. However, the command will be run in **multiprocessing mode** (with number of jobs controllable by option `--jobs`) when `--yes` or `--no` is specified.
+### Multi-processing, debug output, and progress bar
+
+All operations that require interactive user confirmation are run in a single process and executed sequentially. However, when the `--yes` or `--no` option is specified, the command will run in multiprocessing mode. The number of jobs is automatically determined by the number of CPU cores in the running environment, but you can control it with the `--jobs` or `-j` option.
+
+Scanning the entire library can be time-consuming. To enable a progress bar, use the `-p` (or `--progress`) option.
+
+For more detailed information on how `hmo` works, you can enable debug output with the `-v` (or `--verbose`) option. This is particularly helpful for understanding the output of AI models.
 
 ## Explore Your Home Media Library
 
 ### `hmo-list`: List media files
 
-Assuming `2000` is the folder that you keep all your old photos and videos from year 2000,
+The `hmo list` command command scans the specified directories or files and displays all media files it finds. This is useful for quickly seeing what media files are available and verifying which files will be processed by other commands.
+
+#### Target files and directories
+
+`hmo list` and all other `hmo` commands accept one or more filenames or directories, which defines the "target" of the command.
+
+Assuming `2020` and `2021` are the folders that you keep all your old photos and videos from year `2020` and `2021`, command
 
 ```sh
-# list all supported media files
-hmo list 2000
-
-# list multiple directories
-hmo list 200? --search-paths /path/to/storage
-
-# list only certain file types
-hmo list 2000 --file-types '*.mp4'
-
-# list only files with certain exif value.
-# This tends to be slow since it will need to scan the EXIF data of all files
-hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
-# with any key
-hmo list 2009 --with-exif QuickTime:AudioFormat
-# without any Date related EXIF meta data (external File: date is not considered)
-hmo list 2009 --without-exif '*Date'
-
-# all files with tag VACATION
-hmo list 2009 --with-tags VACATION
-# all files with some tag, but not those with tag VACATION
-hmo list 2009 --with-tags --without-tags VACATION
+hmo list 2020 2021
 ```
 
-Note that `--search-paths` is an option used by most `hmo` commands, which specifies a list of directories to search when you specify a file or directory that does not exist under the current working directory. It is convenient to set this option in a configuration file to directories you commonly work with.
+lists all media files under these directories, **ignoring unsupported media file types**. You can also specify a list of files like
+
+```sh
+hmo list incoming/IMG*.jpg
+```
+
+If the files and directories are not under the current directory, you can specify them using their absolute paths, or use option `--search-path` to specify their parent directories.
+
+```
+hmo list 2022 --search-paths /path/to/storage
+```
+
+In practice, we often add the root directory of home media library to option `--search-paths` and add the option to configuration files.
+
+#### list only certain file types
+
+You can list files that match a certain pattern, such as `*.mp5`, as defined in Python's [fnmatch](https://docs.python.org/3/library/fnmatch.html) module.
+
+```sh
+hmo list 2020 --file-types '*.mp4'
+```
+
+The patterns need to be quoted to prevent your shell from expanding them.
+
+#### List only files with certain tags
+
+Tags are words that are associated with media files. They are created with commands `hmo set-tags` or `hmo classify`, and ar stored in a separate data base. To show media files with certain tags, use option `--with-tags` such as
+
+```sh
+hmo list 2009 --with-tags Jenny Vacation
+```
+
+This command shows all pictures with either tag `Jenny` or `Vacation`. Or you would like see media files with both tags, use an `AND` in the query
+
+```sh
+hmo list 2009 --with-tags 'Jenny AND Vacation'
+```
+
+If no value for `--with-tags` is specified, the command will search for media files with any tag,
+
+```sh
+hmo list 2009 --with-tags
+```
+
+and you can combine this option with `--without-tags` to select media files with tags other than the specified ones
+
+```sh
+hmo list 2009 --with-tags --without-tags Jenny
+```
+
+#### list only files with certain EXIF value.
+
+Most media file formats support EXIF metadata, which you can use to filter media files. For example:
+
+```sh
+hmo list 2009 --with-exif QuickTime:AudioFormat=mp4a
+```
+
+This command selects only media files with mp4a for QuickTime:AudioFormat. To select all media files with this tag, regardless of its value, use:
+
+```sh
+hmo list 2009 --with-exif QuickTime:AudioFormat
+```
+
+To select any file with any QuickTime metadata, use:
+
+```sh
+hmo list 2009 --with-exif 'QuickTime:*'
+```
+
+Note that retrieving EXIF information from media files can be slow. To improve performance, you can limit the search by file types:
+
+```sh
+hmo list 2009 --with-exif QuickTime:AudioFormat --file-types '*.mp4' '*.mp3'
+```
+
+#### without any Date related EXIF meta data (external File: date is not considered)
+
+```sh
+hmo list 2009 --without-exif '\*Date'
+```
 
 ### `hmo show-tags`: Show tags associated with media files
 
@@ -200,16 +275,7 @@ Note that `--search-paths` is an option used by most `hmo` commands, which speci
 hmo show-tags 2009
 ```
 
-shows all tags for files under folder 2009. This command, and all following tag and classification related commands, requires a parameter `--manifest` that points to a manifest database. This parameter is usually set in the configuration file as
-
-```toml
-[default]
-manifest = '/path/to/library/manifest.db'
-```
-
-so we will ignore this option from the commands.
-
-Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
+shows all tags for files under folder 2009. Using filters `--with-tags` and `--without-tags`, you can prefilter media files before showing tags
 
 ```sh
 hmo show-tags 2009 --without-tags FACE_FEMALE FACE_MALE
@@ -306,6 +372,13 @@ It is not absolutely necessary, but I prefer to keep files with standardized nam
 The `rename` command extracts the date information from EXIF data, and from the original filename if EXIF information does not exist, and renames the file according to specified format.
 For example, `--format %Y%m%d_%H%M%S` will format files to for example `20010422_041817.mpg`. An option `--suffix` is provided if you would like to add an suffix to the filename.
 
+### Options
+
+| Option            | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `--format FORMAT` | Format of the filename. This option is required unless set in the configuration file. |
+| `--suffix SUFFIX` | A string that will be appended to the filename (before file extension).               |
+
 For example
 
 ```sh
@@ -322,7 +395,10 @@ hmo rename 201010* --format %Y%m%d_%H%M%S` --suffix=-vacation
 
 will generate files like `20101005_129493-vacation.jpg`.
 
-Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
+NOTE:
+
+- Please refer to the [Python datetime module](https://docs.python.org/3/library/datetime.html) on the format string used here.
+- If date information is unavailable, `hmo rename` will ask if you would like to use file motify date.
 
 ### `hmo organize`: Organize files into appropriate folder
 
@@ -388,19 +464,25 @@ Finally, command
 hmo cleanup -y
 ```
 
-will remove files that are commonly copied from cameras, such as `*.LRV` and `*.THM` files from GoPro cameras. It will also remove any empty directories. You can control the file types to be removed by adding options such as `*.CR2` (single quote is needed to avoid shell expansion), namely
+will remove files all selected files. It is used to remove camera artifact files such as `*.LRV` and `*.THM` files from GoPro cameras.
 
 ```sh
-hmo cleanup '*.CR2'
+hmo cleanup folder --file-types '*.CR2'
 ```
 
-To check the file types that will be removed, run
+but it is better to specify this option through the configuration file.
 
-```
-hmo cleanup -h
+Because of the danger to remove files that should not be deleted, it is highly recommend that you run
+
+```sh
+hmo cleanup folder --file-types '*.CR2' -n
 ```
 
-If you notice any bug, or have any request for new features, please submit a ticket or a PR through the GitHub ticket tracker.
+see the list of files that will be removed, before running
+
+```sh
+hmo cleanup folder --file-types '*.CR2' -y
+```
 
 ## Using Tags
 

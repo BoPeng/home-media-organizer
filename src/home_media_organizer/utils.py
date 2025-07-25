@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, List
 
 from diskcache import Cache  # type: ignore
+from filelock import FileLock
 from pyparsing import (
     CharsNotIn,
     Keyword,
@@ -28,11 +30,19 @@ class OrganizeOperation(Enum):
     COPY = "copy"
 
 
-hmo_home = Path.home() / ".ai-marketplace-monitor"
+class RemoveOperation(Enum):
+    REMOVE = "remove"
+    RECYCLE = "recycle"
+
+
+hmo_home = Path.home() / ".home-media-organizer"
 hmo_home.mkdir(parents=True, exist_ok=True)
 cache_dir = hmo_home / "cache"
 cache_dir.mkdir(parents=True, exist_ok=True)
 cache = Cache(cache_dir, verbose=0)
+recycle_dir = hmo_home / "recycled"
+recycle_dir.mkdir(parents=True, exist_ok=True)
+files_db = hmo_home / "files.db"
 
 
 def clear_cache(tag: str) -> None:
@@ -149,6 +159,15 @@ class Manifest:
         self.logger = logger
         self.cache: Dict[Path, ManifestItem] = {}
         self.init_db(filename)
+        self.database_path: str | None = None
+        self._lock: FileLock | None = None
+
+    @property
+    def lock(self) -> FileLock:
+        assert self.database_path is not None
+        if self._lock is None:
+            self._lock = FileLock(self.database_path + ".lock")
+        return self._lock
 
     def init_db(self: "Manifest", filename: str | None, logger: Logger | None = None) -> None:
         self.database_path = str(hmo_home / "manifest.db") if filename is None else filename
@@ -164,17 +183,26 @@ class Manifest:
 
     @contextmanager
     def _get_connection(self: "Manifest") -> Generator[sqlite3.Connection, None, None]:
-        conn = sqlite3.connect(self.database_path)
-        # Enable JSON support
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")  # Set busy timeout to 30 seconds
-        # Register JSON functions for better JSON handling
-        sqlite3.register_adapter(dict, json.dumps)
-        sqlite3.register_converter("JSON", json.loads)
+        conn = None
         try:
+            assert self.database_path is not None
+            conn = sqlite3.connect(self.database_path, detect_types=sqlite3.PARSE_DECLTYPES)
+            # Enable JSON support
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=30000")  # Set busy timeout to 30 seconds
+            # Register JSON functions for better JSON handling
+            sqlite3.register_adapter(dict, json.dumps)
+            sqlite3.register_converter("JSON", json.loads)
+            assert self.database_path is not None
+            conn = sqlite3.connect(self.database_path)
             yield conn
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"SQLite error: {self.database_path}: {e}")
+            sys.exit(1)
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
     def _init_db(self: "Manifest") -> None:
         with self._get_connection() as conn:

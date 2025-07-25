@@ -69,6 +69,7 @@ def validate_media_files(args: argparse.Namespace, logger: logging.Logger | None
             for item, new_hash, corrupted in tqdm(
                 pool.imap(check_media_file, iter_files(args)),
                 desc="Validate media",
+                disable=not args.progress,
             ):
                 existing_hash = manifest.get_hash(item, None)
                 if existing_hash is not None and existing_hash != new_hash:

@@ -40,7 +40,9 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
     with Pool(args.jobs or None) as pool:
         # get file size
         for filename, md5 in tqdm(
-            pool.imap(get_file_hash, iter_files(args, a_files)), desc="Checking A file signature"
+            pool.imap(get_file_hash, iter_files(args, a_files)),
+            desc="Checking A file signature",
+            disable=not args.progress,
         ):
             if args.by == CompareBy.CONTENT.value:
                 a_sig_to_files[md5].append(filename)
@@ -50,7 +52,9 @@ def compare_files(args: argparse.Namespace, logger: logging.Logger | None) -> No
                 a_file_to_sig[filename] = (md5, filename.name)
         #
         for filename, md5 in tqdm(
-            pool.imap(get_file_hash, iter_files(args, b_files)), desc="Checking B file signature"
+            pool.imap(get_file_hash, iter_files(args, b_files)),
+            desc="Checking B file signature",
+            disable=not args.progress,
         ):
             if args.by == CompareBy.CONTENT.value:
                 b_sig_to_files[md5].append(filename)

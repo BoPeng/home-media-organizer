@@ -12,7 +12,7 @@ import rich
 from exiftool import ExifToolHelper  # type: ignore
 from tqdm import tqdm  # type: ignore
 
-from .media_file import date_func
+from .file_db import search_files_with_database
 from .utils import manifest
 
 
@@ -25,10 +25,6 @@ def iter_files(
         if args.file_types and not any(fnmatch.fnmatch(filename, x) for x in args.file_types):
             if logger is not None:
                 logger.debug(f"Ignoring {filename} due to failed --file-types matching.")
-            return False
-        if filename.suffix.lower() not in date_func:
-            if logger is not None:
-                logger.debug(f"Ignoring {filename} due to unsupported filetype")
             return False
         return True
 
@@ -75,17 +71,96 @@ def iter_files(
     for item in items or args.items:
         # if item is an absolute path, use it directory
         # if item is an relative path, check current working directory first
-        # if not found, check the search path
+        # if not found and --search is specified, use database search
+        # otherwise check the search path
         item = Path(item)
         if item.is_absolute():
             pass
         elif item.exists():
             item = item.resolve()
+        elif hasattr(args, "search") and args.search:
+            # Use database search for pattern matching
+            search_paths: List[Path | str] = []
+            if args.search_paths:
+                search_paths = (
+                    [args.search_paths]
+                    if isinstance(args.search_paths, str)
+                    else args.search_paths
+                )
+            if Path.cwd() not in search_paths:
+                search_paths.append(Path.cwd())
+
+            if logger:
+                logger.debug(f"Serching {item} using search_path {search_paths}")
+            # Use --update-db flag if provided
+            update_db = hasattr(args, "update_db") and args.update_db
+            matching_files = search_files_with_database(
+                str(item), search_paths, logger=logger, update_db=update_db
+            )
+
+            if not matching_files:
+                if search_paths:
+                    if len(search_paths) == 1:
+                        rich.print(
+                            f"[red]No files matching pattern '{item}' found in current directory or {search_paths[0]}[/red]"
+                        )
+                    else:
+                        rich.print(
+                            f"[red]No files matching pattern '{item}' found in current directory or any directory under {', '.join(map(str, search_paths))}[/red]"
+                        )
+                    rich.print(
+                        "[yellow]Hint: Use --update-db to refresh database if files are new, --search-paths to add more directories to search.[/yellow]"
+                    )
+                else:
+                    rich.print(
+                        f"[red]No files matching pattern '{item}' found in indexed directories[/red]"
+                    )
+                    rich.print(
+                        "[yellow]Hint: Use --update-db to refresh database, --search-paths to specify directories[/yellow]"
+                    )
+                sys.exit(1)
+
+            # Process all matching files
+            for matching_file in matching_files:
+                if not allowed_filetype(matching_file):
+                    continue
+                if args.with_tags is not None and str(matching_file) not in files_with_tags:
+                    if logger is not None:
+                        logger.debug(
+                            f"Ignoring {matching_file} due to failed --with-tags matching."
+                        )
+                    continue
+                if (
+                    args.without_tags is not None
+                    and str(matching_file) in files_with_unwanted_tags
+                ):
+                    if logger is not None:
+                        logger.debug(
+                            f"Ignoring {matching_file} due to failed --without-tags matching."
+                        )
+                    continue
+                if args.with_exif or args.without_exif:
+                    with ExifToolHelper() as e:
+                        metadata = {
+                            x: y
+                            for x, y in e.get_metadata(matching_file.resolve())[0].items()
+                            if not x.startswith("File:")
+                        }
+                    if not allowed_metadata(metadata):
+                        if logger is not None:
+                            logger.debug(
+                                f"Ignoring {matching_file} due to failed --with-exif or --without-exif matching."
+                            )
+                        continue
+                yield matching_file
+            continue  # Skip the rest of the loop since we handled this item
         elif args.search_paths:
             search_paths = (
                 [args.search_paths] if isinstance(args.search_paths, str) else args.search_paths
             )
-            for path in search_paths:
+            # Add current directory to search paths
+            all_search_paths = [str(Path.cwd()), *search_paths]
+            for path in all_search_paths:
                 if (Path(path) / item).exists():
                     item = (Path(path) / item).resolve()
                     break
@@ -96,7 +171,7 @@ def iter_files(
                     )
                 else:
                     rich.print(
-                        f"[red]{item} not found in current directory or any directory under {', '.join(search_paths)}[/red]"
+                        f"[red]{item} not found in current directory or any directory under {', '.join(map(str, search_paths))}[/red]"
                     )
                 sys.exit(1)
         else:
@@ -204,7 +279,7 @@ def process_with_queue(args: argparse.Namespace, func: Callable) -> None:
         t = Worker(q, func)
         t.start()
 
-    for item in (pbar := tqdm(iter_files(args))):
+    for item in (pbar := tqdm(iter_files(args), disable=not args.progress)):
         pbar.set_description(f"Processing {item.name}")
         q.put(item)
     q.join()

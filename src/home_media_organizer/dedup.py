@@ -34,7 +34,9 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
     with Pool(args.jobs or None) as pool:
         # get file size
         for filename, filesize in tqdm(
-            pool.imap(get_file_size, iter_files(args)), desc="Checking file size"
+            pool.imap(get_file_size, iter_files(args)),
+            desc="Checking file size",
+            disable=not args.progress,
         ):
             size_files[filesize].append(filename)
         #
@@ -43,12 +45,14 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
         for filename, md5 in tqdm(
             pool.imap(get_file_md5, potential_duplicates),
             desc="Checking file content",
+            disable=not args.progress,
         ):
             md5_files[md5].append(filename)
 
     #
     duplicated_cnt = 0
     removed_cnt = 0
+    failed_cnt = 0
     for files in md5_files.values():
         if len(files) == 1:
             continue
@@ -66,10 +70,15 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
                     if logger is not None:
                         logger.info(f"[green]DRYRUN[/green] Would remove {filename}")
                 else:
-                    os.remove(filename)
-                    if logger is not None:
-                        logger.info(f"[red]{filename}[/red] is removed.")
-                    removed_cnt += 1
+                    try:
+                        os.remove(filename)
+                        if logger is not None:
+                            logger.info(f"[red]{filename}[/red] is removed.")
+                        removed_cnt += 1
+                    except Exception as exc:
+                        if logger is not None:
+                            logger.error(f"Failed to remove {filename}: {exc}")
+                        failed_cnt += 1
         else:
             # ask which file that user would like to keep
             msg = f"\nThe following [red]{len(files)}[/red] files have the same content:\n"
@@ -95,6 +104,13 @@ def remove_duplicated_files(args: argparse.Namespace, logger: logging.Logger | N
                 if logger is not None:
                     logger.info(f"[red]{filename}[/red] is removed.")
                 removed_cnt += 1
+    if logger is not None:
+        logger.info(
+            f"[red]{duplicated_cnt}[/red] files are duplicated. "
+            f"[green]{removed_cnt}[/green] files are removed."
+        )
+        if failed_cnt > 0:
+            logger.error(f"[red]{failed_cnt}[/red] files failed to remove.")
 
 
 def get_dedup_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:

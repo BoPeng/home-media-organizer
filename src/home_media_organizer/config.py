@@ -15,15 +15,20 @@ class Config:
     local_config_file: Path = Path.cwd() / ".home-media-organizer.toml"
 
     allowed_commands: ClassVar = [
-        "list",
-        "show-exif",
-        "set-exif",
-        "shift-exif",
-        "dedup",
-        "validate",
-        "rename",
-        "organize",
+        "classify",
         "cleanup",
+        "dedup",
+        "list",
+        "organize",
+        "rename",
+        "set-exif",
+        "set-tags",
+        "shift-exif",
+        "show-exif",
+        "show-tags",
+        "remove",
+        "remove-tag",
+        "validate",
     ]
 
     def __init__(self, config_file: str | None) -> None:

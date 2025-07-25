@@ -61,6 +61,7 @@ def classify(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                     },
                 ),
                 desc="Classifying media",
+                disable=not args.progress,
             ):
                 if not tags:
                     continue

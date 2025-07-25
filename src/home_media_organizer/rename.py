@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from .home_media_organizer import iter_files, process_with_queue
+from .home_media_organizer import iter_files
 from .media_file import MediaFile
 
 
@@ -24,18 +24,18 @@ def rename_file(
 def rename_files(args: argparse.Namespace, logger: logging.Logger | None) -> None:
     if not args.format:
         raise ValueError("Option --format is required.")
-    if args.confirmed is not None:
-        process_with_queue(
-            args,
-            lambda x, filename_format=args.format, suffix=args.suffix or "", logger=logger: rename_file(
-                x, filename_format, suffix, True, logger
-            ),
-        )
-    else:
-        for item in iter_files(args):
-            if logger is not None:
-                logger.info(f"Processing [blue]{item}[/blue]")
-            rename_file(item, args.format, args.suffix or "", args.confirmed, logger)
+    # if args.confirmed is not None:
+    #     process_with_queue(
+    #         args,
+    #         lambda x, filename_format=args.format, suffix=args.suffix or "", logger=logger: rename_file(
+    #             x, filename_format, suffix, args.confirmed, logger
+    #         ),
+    #     )
+    # else:
+    for item in iter_files(args):
+        # if logger is not None:
+        #     logger.info(f"Processing [blue]{item}[/blue]")
+        rename_file(item, args.format, args.suffix or "", args.confirmed, logger)
 
 
 def get_rename_parser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:

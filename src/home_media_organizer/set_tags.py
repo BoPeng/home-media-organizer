@@ -69,6 +69,7 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                     },
                 ),
                 desc="Comparing media",
+                disable=not args.progress,
             ):
                 if not match:
                     continue
@@ -76,7 +77,7 @@ def set_tags(args: argparse.Namespace, logger: logging.Logger | None) -> None:
                 cnt += 1
     else:
         # do the samething sequentially
-        for item in tqdm(iter_files(args)):
+        for item in tqdm(iter_files(args), disable=not args.progress):
             match = verify_files(
                 (
                     item,

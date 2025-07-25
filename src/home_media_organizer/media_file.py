@@ -13,7 +13,7 @@ import inflect
 from exiftool import ExifToolHelper  # type: ignore
 from PIL import Image, UnidentifiedImageError
 
-from .utils import OrganizeOperation, get_response, manifest
+from .utils import OrganizeOperation, RemoveOperation, get_response, manifest, recycle_dir
 
 
 def image_date(filename: Path) -> str | None:
@@ -174,7 +174,10 @@ class MediaFile:
         self: "MediaFile", confirmed: bool | None = None, logger: Logger | None = None
     ) -> str:
         if self.date is None:
-            funcs = date_func[self.ext.lower()]
+            try:
+                funcs = date_func[self.ext.lower()]
+            except Exception:
+                funcs = ()
             for func in funcs:
                 try:
                     self.date = func(self.fullname)
@@ -448,6 +451,7 @@ class MediaFile:
             return
         elif self.filename.startswith(
             self.intended_prefix(filename_format=filename_format, confirmed=confirmed)
+            + (suffix or "")
         ):
             if logger is not None:
                 logger.info(
@@ -472,22 +476,23 @@ class MediaFile:
                 if self.fullname.samefile(new_file):
                     return
                 if filecmp.cmp(self.fullname, new_file, shallow=False):
-                    if logger is not None:
-                        logger.info(
-                            f"[green]DRYRUN[/green] Would rename {self.fullname} to an existing file {new_file}"
-                        )
+                    if confirmed is False:
+                        if logger is not None:
+                            logger.info(
+                                f"[green]DRYRUN[/green] Would rename {self.fullname} to an existing file {new_file}"
+                            )
                     elif confirmed or get_response(
                         f"Rename {self.fullname} to an existing file {new_file}"
                     ):
                         os.remove(self.fullname)
-                        manifest.remove(self.fullname)
+                        with manifest.lock:
+                            manifest.remove(self.fullname)
                         if logger is not None:
                             logger.info(
                                 f"Removed duplicated file [blue]{self.fullname.name}[/blue]"
                             )
                     return
                 return self.rename(filename_format, suffix, confirmed, logger, attempt + 1)
-
             if confirmed is False:
                 if logger is not None:
                     logger.info(
@@ -497,7 +502,8 @@ class MediaFile:
                 f"Rename [blue]{self.fullname}[/blue] to [blue]{new_file.name}[/blue]"
             ):
                 os.rename(self.fullname, new_file)
-                manifest.rename(self.fullname, new_file)
+                with manifest.lock:
+                    manifest.rename(self.fullname, new_file)
                 if logger is not None:
                     logger.info(
                         f"Renamed [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
@@ -533,6 +539,10 @@ class MediaFile:
             nn = self.filename
 
         new_file = intended_path / nn
+        if new_file == self.fullname:
+            if logger is not None:
+                logger.info(f"File [blue]{self.filename}[/blue] unsupported or already organized.")
+            return
 
         if confirmed is False:
             if logger is not None:
@@ -549,7 +559,8 @@ class MediaFile:
                     if filecmp.cmp(self.fullname, new_file, shallow=False):
                         if operation == OrganizeOperation.MOVE:
                             os.remove(self.fullname)
-                            manifest.remove(self.fullname)
+                            with manifest.lock:
+                                manifest.remove(self.fullname)
                             if logger is not None:
                                 logger.info(f"Remove duplicated file {self.fullname}")
                         else:
@@ -568,14 +579,16 @@ class MediaFile:
                     )
                 if operation == OrganizeOperation.COPY:
                     shutil.copy2(self.fullname, new_file)
-                    manifest.copy(self.fullname, new_file)
+                    with manifest.lock:
+                        manifest.copy(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
                             f"Copied [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
                         )
                 else:
                     shutil.move(self.fullname, new_file)
-                    manifest.rename(self.fullname, new_file)
+                    with manifest.lock:
+                        manifest.rename(self.fullname, new_file)
                     if logger is not None:
                         logger.info(
                             f"Moved [blue]{self.fullname.name}[/blue] to [green]{new_file}[/green]"
@@ -607,10 +620,11 @@ class MediaFile:
         elif confirmed or get_response(
             f"""Add tags [magenta]{", ".join(tags.keys())}[/magenta] to [blue]{self.filename}[/blue]"""
         ):
-            if overwrite:
-                manifest.set_tags(self.fullname, tags)
-            else:
-                manifest.add_tags(self.fullname, tags)
+            with manifest.lock:
+                if overwrite:
+                    manifest.set_tags(self.fullname, tags)
+                else:
+                    manifest.add_tags(self.fullname, tags)
             if logger is not None:
                 logger.info(
                     f"""{self.inflect.plural_noun("Tag", len(tags))} [magenta]{", ".join(tags.keys())}[/magenta] added to [blue]{self.fullname}[/blue]"""
@@ -630,6 +644,53 @@ class MediaFile:
         elif confirmed or get_response(
             f"""Remove tags [magenta]{", ".join(tags)}[/magenta] from [blue]{self.filename}[/blue]"""
         ):
-            manifest.remove_tags(self.fullname, tags)
+            with manifest.lock:
+                manifest.remove_tags(self.fullname, tags)
+
             if logger is not None:
                 logger.info(f"Removed tags {tags} from [blue]{self.filename}[/blue]")
+
+    def remove(
+        self,
+        operation: RemoveOperation = RemoveOperation.RECYCLE,
+        recycle_bin: str | None = None,
+        confirmed: bool | None = None,
+        logger: Logger | None = None,
+    ) -> None:
+        # if confirmed is False:
+        #     if logger is not None:
+        #         logger.info(
+        #             f"""[green]DRYRUN[/green] Would remove [blue]{self.filename}[/blue]"""
+        #         )
+        # elif confirmed or get_response(
+        #     f"""Remove [blue]{self.filename}[/blue]"""
+        # ):
+        if operation == RemoveOperation.REMOVE:
+            if confirmed is False:
+                if logger is not None:
+                    logger.info(
+                        f"""[green]DRYRUN[/green] Would permanently remove [blue]{self.fullname}[/blue]"""
+                    )
+            elif confirmed or get_response(f"""Permanently remove [blue]{self.fullname}[/blue]"""):
+                os.remove(self.fullname)
+                with manifest.lock:
+                    manifest.remove(self.fullname)
+                if logger is not None:
+                    logger.info(f"Permanently removed [blue]{self.fullname}[/blue]")
+        else:
+            # move file to recycle bin
+            if recycle_bin is None:
+                recycle_bin = str(recycle_dir)
+            if confirmed is False:
+                if logger is not None:
+                    logger.info(
+                        f"""[green]DRYRUN[/green] Would be moved [blue]{self.fullname}[/blue] to recycle bin"""
+                    )
+            elif confirmed or get_response(
+                f"""Move [blue]{self.fullname}[/blue] to recycle bin"""
+            ):
+                shutil.move(self.fullname, recycle_bin)
+                with manifest.lock:
+                    manifest.remove(self.fullname)
+                if logger is not None:
+                    logger.info(f"Moved [blue]{self.fullname}[/blue] to recycle bin")
