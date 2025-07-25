@@ -680,7 +680,7 @@ class MediaFile:
         else:
             # move file to recycle bin
             if recycle_bin is None:
-                recycle_bin = recycle_dir
+                recycle_bin = str(recycle_dir)
             if confirmed is False:
                 if logger is not None:
                     logger.info(

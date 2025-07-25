@@ -90,7 +90,8 @@ def iter_files(
             if Path.cwd() not in search_paths:
                 search_paths.append(Path.cwd())
 
-            logger.debug(f"Serching {item} using search_path {search_paths}")
+            if logger:
+                logger.debug(f"Serching {item} using search_path {search_paths}")
             # Use --update-db flag if provided
             update_db = hasattr(args, "update_db") and args.update_db
             matching_files = search_files_with_database(
@@ -170,7 +171,7 @@ def iter_files(
                     )
                 else:
                     rich.print(
-                        f"[red]{item} not found in current directory or any directory under {', '.join(search_paths)}[/red]"
+                        f"[red]{item} not found in current directory or any directory under {', '.join(map(str, search_paths))}[/red]"
                     )
                 sys.exit(1)
         else:

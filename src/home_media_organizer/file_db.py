@@ -71,7 +71,7 @@ class FileDatabase:
     def search_files(
         self,
         pattern: str,
-        search_paths: Optional[List[str]] = None,
+        search_paths: Optional[List[str | Path]] = None,
         logger: Logger | None = None,
         update_db: bool = False,
     ) -> List[Path]:

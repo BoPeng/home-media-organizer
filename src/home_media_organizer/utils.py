@@ -159,8 +159,8 @@ class Manifest:
         self.logger = logger
         self.cache: Dict[Path, ManifestItem] = {}
         self.init_db(filename)
-        self.database_path = None
-        self._lock = None
+        self.database_path: str | None = None
+        self._lock: FileLock | None = None
 
     @property
     def lock(self) -> FileLock:
@@ -185,6 +185,7 @@ class Manifest:
     def _get_connection(self: "Manifest") -> Generator[sqlite3.Connection, None, None]:
         conn = None
         try:
+            assert self.database_path is not None
             conn = sqlite3.connect(self.database_path, detect_types=sqlite3.PARSE_DECLTYPES)
             # Enable JSON support
             conn.execute("PRAGMA journal_mode=WAL")
@@ -192,6 +193,7 @@ class Manifest:
             # Register JSON functions for better JSON handling
             sqlite3.register_adapter(dict, json.dumps)
             sqlite3.register_converter("JSON", json.loads)
+            assert self.database_path is not None
             conn = sqlite3.connect(self.database_path)
             yield conn
         except Exception as e:
